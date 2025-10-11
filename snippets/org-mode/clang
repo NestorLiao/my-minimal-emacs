@@ -1,0 +1,9 @@
+# -*- mode: snippet -*-
+# name: clannd
+# key: c_
+# --
+#+header: :var mystring="Sunday" :var myint=145 :var mydouble=3.14
+#+header: :flags -Wall -Wextra -std=c23 -pedantic
+#+begin_src C :includes <stdio.h> <math.h>
+$0
+#+end_src
