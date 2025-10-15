@@ -40,15 +40,12 @@
   :commands (vterm--internal)
   :bind (:map vterm-mode-map
               ("C-p" . vterm-copy-mode)
-              ;; ("<C-backspace>" . (lambda () (interactive) (vterm-send-key (kbd "C-w"))))
               :map vterm-copy-mode-map
               ("C-p" . vterm-previous-prompt )
               ("C-f" . vterm-next-prompt )
               ("C-<return>" . compile-goto-error))
-
   :config
   (setq vterm-timer-delay 0.01)
-
   (with-eval-after-load 'vterm
     (setq vterm-kill-buffer-on-exit t)
     (advice-add 'vterm :after
@@ -202,7 +199,7 @@
   (auto-revert-remote-files nil)
   (auto-revert-use-notify t)
   (auto-revert-avoid-polling nil)
-  (auto-revert-verbose t))
+  (auto-revert-verbose nil))
 
 (use-package orderless
   :ensure t
@@ -222,13 +219,15 @@
               ("C-c r" . eglot-rename)
               ("C-c l" . eglot-command-map))
   :hook (eglot-managed-mode . (lambda ()
-                                (add-hook 'eglot-managed-mode-hook #'eldoc-mode)
+                                ;; (add-hook 'eglot-managed-mode-hook #'eldoc-mode)
                                 (eglot-inlay-hints-mode -1)
+                                (eldoc-mode -1)
                                 ;; (add-to-list 'eglot-stay-out-of 'flymake)
                                 ;; (add-hook 'before-save-hook 'eglot-format nil nil)
                                 ))
   :custom
   (eglot-sync-connect 0)
+  (eldoc-mode -1)
   (eglot-autoshutdown t)
   (eglot-extend-to-xref t)
   (eglot-events-buffer-config '(:size 0 :format short))
@@ -397,22 +396,6 @@
         trashed-sort-key '("Date deleted" . t)
         trashed-date-format "%Y-%m-%d %H:%M:%S"))
 
-(use-package pdf-tools
-  :ensure t
-  :defer t
-  :mode "\\.pdf\\'"
-  :init (pdf-loader-install)
-  :commands (pdf-view-mode)
-  :bind (:map pdf-view-mode-map
-              ("n" . pdf-view-next-page)
-              ("p" . pdf-view-previous-page)
-              ("b" . (lambda () (interactive) (toggle-monitor)))
-              ("ESC <prior>" . (lambda () (interactive) (bookmark-set "epub")))
-              ("C-M-i" .              (lambda () (interactive) (bookmark-jump "epub")))
-              ("<prior>" . nov-scroll-down)
-              ("<next>" . nov-scroll-up))
-  :config (add-to-list 'revert-without-query ".pdf"))
-
 (use-package org
   :ensure t
   :defer t
@@ -481,8 +464,8 @@
                       monitorpath
                       (car (nthcdr number monitorarg))
                       (car (nthcdr number deepink))))
-      (sleep-for 1)
-      (shell-command (concat monitorcli monitorpath " -clear"))))
+      (sleep-for 0.5)
+      ))
   (setq monitor-state 'read))
 
 (defun watch-monitor ()
@@ -494,7 +477,7 @@
                       (car (nthcdr number monitorarg))
                       (car (nthcdr number shallow))))
       (sleep-for 0.5)
-      (shell-command (concat monitorcli monitorpath " -clear"))))
+      ))
   (setq monitor-state 'watch))
 
 (defun toggle-monitor ()
@@ -507,25 +490,14 @@
                      (lambda ()
                        (start-process "notify" nil "notify-send" "Reminder" "did you missed that?")
                        (read-monitor)
-                       (sleep-for 2)
-                       (shell-command (concat monitorcli monitorpath " -clear")))))
+                       (sleep-for 1))))
     (progn
       (read-monitor)
-      (sleep-for 2)
-      (shell-command (concat monitorcli monitorpath " -clear")))))
-
-(use-package nov
-  :mode ("\\.epub\\'" . nov-mode)
-  :bind (:map nov-mode-map
-              ("p" . 'scroll-down-command)
-              ("n" . 'scroll-up-command)
-              ("b" . (lambda () (interactive) (toggle-monitor)))
-              ("ESC <prior>" . (lambda () (interactive) (bookmark-set "epub")))
-              ("C-M-i" .              (lambda () (interactive) (bookmark-jump "epub")))
-              ("<prior>" . nov-scroll-down)
-              ("<next>" . nov-scroll-up))
-  :config
-  (setq nov-header-line-format ""))
+      (sleep-for 1)))
+  (progn
+    (shell-command (concat monitorcli monitorpath " -clear"))
+    (sleep-for 1)
+    (delete-other-windows)))
 
 (add-hook 'minibuffer-setup-hook #'vertico-repeat-save)
 
@@ -792,7 +764,7 @@
         shr-bullet "• "
         shr-folding-mode t
         shr-use-fonts nil
-        shr-inhibit-images t
+        shr-inhibit-images nil
         shr-width 80
         eww-search-prefix nil
         ;; url-privacy-level '(email agent cookies lastloc)
@@ -1223,6 +1195,45 @@ of the non-current window."
           (setq my-toggled-buffer nil))
       (message "No toggled buffer available."))))
 
+(use-package nov
+  :mode ("\\.epub\\'" . nov-mode)
+  :bind (:map nov-mode-map
+              ("p" . 'scroll-down-command)
+              ("n" . 'scroll-up-command)
+              ("b" . (lambda () (interactive) (toggle-monitor)))
+              ("ESC <prior>" . (lambda () (interactive) (bookmark-set "epub")))
+              ("C-M-i" .              (lambda () (interactive) (bookmark-jump "epub")))
+              ("<prior>" . nov-scroll-down)
+              ("<next>" . nov-scroll-up))
+  :config
+  (setq nov-header-line-format ""))
+
+;; pen
+;; 1. <tab>
+;;    - double: <enter>
+;;    - long: C-M-i
+;; 2. <prior>
+;;    - long: <esc>/<f5>
+;; 3. <next>
+;;    - long: <b>
+;; 4. laser
+
+(use-package pdf-tools
+  :ensure t
+  :defer t
+  :mode ("\\.pdf\\'" . pdf-view-mode)
+  :init (pdf-loader-install)
+  :commands (pdf-view-mode)
+  :bind (:map pdf-view-mode-map
+              ("n" . pdf-view-next-page)
+              ("p" . pdf-view-previous-page)
+              ("b" . (lambda () (interactive) (toggle-monitor)))
+              ("ESC <prior>" . (lambda () (interactive) (bookmark-set "pdf")))
+              ("C-M-i" .              (lambda () (interactive) (bookmark-jump "pdf")))
+              ("<prior>" . pdf-view-previous-page)
+              ("<next>" . pdf-view-next-page))
+  :config (add-to-list 'revert-without-query ".pdf"))
+
 (use-package info
   :bind (:map Info-mode-map
               ("<mouse-8>" . scroll-up-record)
@@ -1401,9 +1412,9 @@ of the non-current window."
   (insert (message "Sleep For %S Hour, Have A Nice Day!\n"
                    (/ (time-to-seconds (time-since hibernatetime) ) 3600)))
   (shell-command "notify-send -t 3000 'Have A Nice Time!'")
-  (shell-command "paperlike-cli -i2c /dev/i2c-4 -clear;")
-  (previous-line)
-  (kill-whole-line)
+  (delete-other-windows)
+  ;; (previous-line)
+  ;; (kill-whole-line)
   (save-excursion
     (find-file "~/.paperlike_state")
     (erase-buffer)
@@ -1412,7 +1423,7 @@ of the non-current window."
     (kill-buffer)
     (donothing))
   (sleep-for 1)
-  (bookmark-jump "c")
+  (bookmark-jump "pdf")
   (clear-minibuffer-message))
 
 (use-package pyim
@@ -1689,6 +1700,11 @@ If region is active:
 (define-key nav-map (kbd "m") #'toggle-truncate-lines)
 (define-key nav-map (kbd "v") (lambda () (interactive) (recenter-top-bottom 123)))
 (define-key nav-map (kbd "b") #'quick-sdcv-search-at-point)
+(define-key nav-map (kbd "j") #'quick-sdcv-search-at-point)
+(define-key nav-map (kbd "l") #'quick-sdcv-search-at-point)
+(define-key nav-map (kbd "u") #'quick-sdcv-search-at-point)
+(define-key nav-map (kbd "y") #'quick-sdcv-search-at-point)
+(define-key nav-map (kbd "'") #'quick-sdcv-search-at-point)
 
 (define-prefix-command 'mos-map)
 (keymap-global-set "C-c C-;" 'mos-map)
@@ -1838,6 +1854,34 @@ See `one-render-pages'."
 (add-hook 'c++-mode-hook #'eglot-ensure)
 
 (setq resize-mini-windows nil)
-
+(global-eldoc-mode -1)
 (setq vterm-always-compile-module t)
 
+(use-package face-remap
+  :ensure nil
+  :config
+  (defun text-scale-adjust (inc)
+    (interactive "p")
+    (let ((ev last-command-event)
+	      (echo-keystrokes nil))
+      (let* ((base (event-basic-type ev))
+             (step
+              (pcase base
+                ((or ?+ ?=) inc)
+                (?- (- inc))
+                (?0 0)
+                (_ inc))))
+        (text-scale-increase step)
+        (set-transient-map
+         (let ((map (make-sparse-keymap)))
+           (dolist (mods '(() (control)))
+             (dolist (key '(?+ ?= ?- ?0)) ;; = is often unshifted +.
+               (define-key map (vector (append mods (list key)))
+                           (lambda () (interactive) (text-scale-adjust (abs inc))))))
+           map)
+         nil nil
+         "")))))
+
+(use-package simple
+  :ensure nil
+  :config)
