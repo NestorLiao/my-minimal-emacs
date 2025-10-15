@@ -6,8 +6,8 @@
               scroll-margin 0
               next-screen-context-lines 0)
 
-(repeat-mode 1)
-(global-font-lock-mode 1)
+(repeat-mode -1)
+(global-font-lock-mode -1)
 
 (setq-default ;; Use setq-default to define global default
  ;; Who I am

@@ -20,7 +20,7 @@
   ;; (push "/init.el" compile-angel-excluded-files)
   ;; (push "/early-init.el" compile-angel-excluded-files)
   ;; (push "/pre-init.el" compile-angel-excluded-files)
-  ;; (push "/post-init.el" compile-angel-excluded-files)
+  (push "/post-init.el" compile-angel-excluded-files)
   ;; (push "/pre-early-init.el" compile-angel-excluded-files)
   ;; (push "/post-early-init.el" compile-angel-excluded-files)
 
@@ -38,9 +38,17 @@
   :ensure t
   :defer t
   :commands (vterm--internal)
+  :bind (:map vterm-mode-map
+              ("C-p" . vterm-copy-mode)
+              ;; ("<C-backspace>" . (lambda () (interactive) (vterm-send-key (kbd "C-w"))))
+              :map vterm-copy-mode-map
+              ("C-p" . vterm-previous-prompt )
+              ("C-f" . vterm-next-prompt )
+              ("C-<return>" . compile-goto-error))
+
   :config
-  (define-key vterm-mode-map (kbd "<f6>") #'consult-dir)
   (setq vterm-timer-delay 0.01)
+
   (with-eval-after-load 'vterm
     (setq vterm-kill-buffer-on-exit t)
     (advice-add 'vterm :after
@@ -48,6 +56,7 @@
                   (with-current-buffer buf
                     (set-process-query-on-exit-flag
                      (get-buffer-process (current-buffer)) nil))))))
+(add-hook 'vterm-mode-hook (lambda () (compilation-shell-minor-mode 1) (define-key vterm-copy-mode-map (kbd "C-<return>") 'compile-goto-error)))
 
 (use-package vertico
   :ensure t
@@ -118,10 +127,10 @@
          ("C-x 5 b" . consult-buffer-other-frame)
          ("C-x t b" . consult-buffer-other-tab)
          ("C-x r b" . consult-bookmark)
-         ;; ("C-x p b" . consult-project-buffer)
+         ("C-x p b" . consult-project-buffer)
          ;; Custom M-# bindings for fast register access
          ("M-#" . consult-register-load)
-         ("M-'" . consult-register-store)
+         ("M-$" . consult-register-store)
          ("C-M-#" . consult-register)
          ;; Other custom bindings
          ("M-y" . consult-yank-pop)
@@ -129,7 +138,7 @@
          ("M-g e" . consult-compile-error)
          ("M-g f" . consult-flymake)
          ("M-g g" . consult-goto-line)
-         ("M-g M-g" . consult-goto-line)
+         ("M-g d" . consult-dir)
          ("M-g o" . consult-outline)
          ("M-g m" . consult-mark)
          ("M-g k" . consult-global-mark)
@@ -215,7 +224,7 @@
   :hook (eglot-managed-mode . (lambda ()
                                 (add-hook 'eglot-managed-mode-hook #'eldoc-mode)
                                 (eglot-inlay-hints-mode -1)
-                                (add-to-list 'eglot-stay-out-of 'flymake)
+                                ;; (add-to-list 'eglot-stay-out-of 'flymake)
                                 ;; (add-hook 'before-save-hook 'eglot-format nil nil)
                                 ))
   :custom
@@ -229,6 +238,8 @@
                                        :colorProvider
                                        :inlayHintProvider))
   :config
+  (setq flymake-no-changes-timeout 1)  ; Don't run on idle
+  (setq flymake-start-on-flymake-mode t) ; Don't auto-start
   (setq eglot-server-programs
         '((c-mode . ("clangd"))
           (c++-mode . ("clangd"))
@@ -394,7 +405,12 @@
   :commands (pdf-view-mode)
   :bind (:map pdf-view-mode-map
               ("n" . pdf-view-next-page)
-              ("p" . pdf-view-previous-page))
+              ("p" . pdf-view-previous-page)
+              ("b" . (lambda () (interactive) (toggle-monitor)))
+              ("ESC <prior>" . (lambda () (interactive) (bookmark-set "epub")))
+              ("C-M-i" .              (lambda () (interactive) (bookmark-jump "epub")))
+              ("<prior>" . nov-scroll-down)
+              ("<next>" . nov-scroll-up))
   :config (add-to-list 'revert-without-query ".pdf"))
 
 (use-package org
@@ -405,13 +421,13 @@
   ("\\.org\\'" . org-mode)
   :custom
   (org-hide-leading-stars t)
-  (org-startup-folded 'show2levels)
+  (org-startup-folded 'showeverything)
   (org-agenda-span 'week)
   (org-log-into-drawer t)
   (org-startup-indented t)
   (org-adapt-indentation nil)
   (org-edit-src-content-indentation 0)
-  (org-startup-truncated nil)
+  ;; (org-startup-truncated nil)
   (org-fontify-done-headline nil)
   (org-fontify-todo-headline nil)
   (org-hide-emphasis-markers t)
@@ -429,6 +445,7 @@
     (defun insert-date()
       (interactive)
       (insert (format-time-string "%Y-%m-%d"))))
+  (add-hook 'org-mode-hook (lambda () (setq truncate-lines nil)))
   (org-babel-do-load-languages
    'org-babel-load-languages
    '((C . t)
@@ -454,7 +471,7 @@
 (defvar monitorcli "paperlike-cli -i2c ")
 (defvar monitorarg '(" -contrast " " -speed " " -mode "))
 (defvar deepink '("9" "5" "1"))
-(defvar shallow '("2" "1" "3"))
+(defvar shallow '("2" "2" "3"))
 
 (defun read-monitor ()
   (progn
@@ -489,9 +506,13 @@
         (run-at-time "15 second" nil
                      (lambda ()
                        (start-process "notify" nil "notify-send" "Reminder" "did you missed that?")
-                       (read-monitor))))
-    (progn (read-monitor) (sleep-for 2)))
-  (shell-command (concat monitorcli monitorpath " -clear")))
+                       (read-monitor)
+                       (sleep-for 2)
+                       (shell-command (concat monitorcli monitorpath " -clear")))))
+    (progn
+      (read-monitor)
+      (sleep-for 2)
+      (shell-command (concat monitorcli monitorpath " -clear")))))
 
 (use-package nov
   :mode ("\\.epub\\'" . nov-mode)
@@ -511,185 +532,180 @@
 (use-package avy
   :ensure t
   :bind (
-         ;; ("C-d"     . avy-goto-char-timer)
          ("M-g M-g" . avy-goto-line)
-         ("M-g M-k" . avy-kill-whole-line)
-         ("M-g g"   . consult-goto-line))
+         ("M-g M-k" . avy-kill-whole-line))
   :config
-
   (setq avy-all-windows t)
-  (setq avy-keys '( ?r ?s ?t ?d ?h ?n ?e ?i)))
+  (setq avy-keys '( ?r ?s ?t ?d ?h ?n ?e ?i))
+  (avy-setup-default)
+  (setq isearch-allow-motion t)
+  (defun avy-action-kill-whole-line (pt)
+    (save-excursion
+      (goto-char pt)
+      (kill-whole-line))
+    (select-window
+     (cdr
+      (ring-ref avy-ring 0)))
+    t)
 
-(avy-setup-default)
-(setq isearch-allow-motion t)
+  (setf (alist-get ?k avy-dispatch-alist) 'avy-action-kill-stay
+        (alist-get ?K avy-dispatch-alist) 'avy-action-kill-whole-line)
 
-(defun avy-action-kill-whole-line (pt)
-  (save-excursion
-    (goto-char pt)
-    (kill-whole-line))
-  (select-window
-   (cdr
-    (ring-ref avy-ring 0)))
-  t)
+  (defun avy-action-copy-whole-line (pt)
+    (save-excursion
+      (goto-char pt)
+      (cl-destructuring-bind (start . end)
+          (bounds-of-thing-at-point 'line)
+        (copy-region-as-kill start end)))
+    (select-window
+     (cdr
+      (ring-ref avy-ring 0)))
+    t)
 
-(setf (alist-get ?k avy-dispatch-alist) 'avy-action-kill-stay
-      (alist-get ?K avy-dispatch-alist) 'avy-action-kill-whole-line)
+  (defun avy-action-yank-whole-line (pt)
+    (avy-action-copy-whole-line pt)
+    (save-excursion (yank))
+    t)
 
-(defun avy-action-copy-whole-line (pt)
-  (save-excursion
-    (goto-char pt)
-    (cl-destructuring-bind (start . end)
-        (bounds-of-thing-at-point 'line)
-      (copy-region-as-kill start end)))
-  (select-window
-   (cdr
-    (ring-ref avy-ring 0)))
-  t)
+  (setf (alist-get ?y avy-dispatch-alist) 'avy-action-yank
+        (alist-get ?w avy-dispatch-alist) 'avy-action-copy
+        (alist-get ?W avy-dispatch-alist) 'avy-action-copy-whole-line
+        (alist-get ?Y avy-dispatch-alist) 'avy-action-yank-whole-line)
 
-(defun avy-action-yank-whole-line (pt)
-  (avy-action-copy-whole-line pt)
-  (save-excursion (yank))
-  t)
+  (defun avy-action-teleport-whole-line (pt)
+    (avy-action-kill-whole-line pt)
+    (save-excursion (yank)) t)
 
-(setf (alist-get ?y avy-dispatch-alist) 'avy-action-yank
-      (alist-get ?w avy-dispatch-alist) 'avy-action-copy
-      (alist-get ?W avy-dispatch-alist) 'avy-action-copy-whole-line
-      (alist-get ?Y avy-dispatch-alist) 'avy-action-yank-whole-line)
+  (setf (alist-get ?c avy-dispatch-alist) 'avy-action-teleport
+        (alist-get ?C avy-dispatch-alist) 'avy-action-teleport-whole-line)
 
-(defun avy-action-teleport-whole-line (pt)
-  (avy-action-kill-whole-line pt)
-  (save-excursion (yank)) t)
+  (defun avy-action-mark-to-char (pt)
+    (activate-mark)
+    (goto-char pt))
 
-(setf (alist-get ?c avy-dispatch-alist) 'avy-action-teleport
-      (alist-get ?C avy-dispatch-alist) 'avy-action-teleport-whole-line)
+  (setf (alist-get ?  avy-dispatch-alist) 'avy-action-mark-to-char)
 
-(defun avy-action-mark-to-char (pt)
-  (activate-mark)
-  (goto-char pt))
-
-(setf (alist-get ?  avy-dispatch-alist) 'avy-action-mark-to-char)
-
-(defun dictionary-search-dwim (&optional arg)
-  "Search for the definition of a word based on context.
+  (defun dictionary-search-dwim (&optional arg)
+    "Search for the definition of a word based on context.
 - With a prefix argument (C-u), prompt for a word to search.
 - If a region is active, search for the selected text.
 - If the point is on a word, look up that word's definition.
 - Otherwise, display a message indicating no word was found."
-  (interactive "P")
-  (cond
-   (arg
-    (dictionary-search nil))  ;; Prompt user for a word
-   ((use-region-p)
-    (dictionary-search (buffer-substring-no-properties (region-beginning) (region-end))))
-   ((thing-at-point 'word)
-    (dictionary-lookup-definition))
-   (t
-    (message "No word found at point or in region"))))
+    (interactive "P")
+    (cond
+     (arg
+      (dictionary-search nil))  ;; Prompt user for a word
+     ((use-region-p)
+      (dictionary-search (buffer-substring-no-properties (region-beginning) (region-end))))
+     ((thing-at-point 'word)
+      (dictionary-lookup-definition))
+     (t
+      (message "No word found at point or in region"))))
 
-(defun avy-dictionary-search (pt)
-  "Jump to the point PT and search the definition of the word at that point."
-  (interactive "d")
-  (goto-char pt)
-  (dictionary-search-dwim))
-
-;; Bind avy-dictionary-search to the '=' key in avy-dispatch-alist
-(setf (alist-get ?D avy-dispatch-alist) 'avy-dictionary-search)
-
-(defun avy-quick-sdcv-search-at-point (pt)
-  "Jump to the point PT and search the definition of the word at that point."
-  (interactive "d")
-  (goto-char pt)
-  (quick-sdcv-search-at-point))
-
-;; Bind avy-dictionary-search to the '=' key in avy-dispatch-alist
-(setf (alist-get ?q avy-dispatch-alist) 'avy-quick-sdcv-search-at-point)
-
-(defun tldr-at-point ()
-  "Show tldr for the word at point."
-  (interactive)
-  (let ((word (current-word)))
-    (if word
-        (tldr word)
-      (message "No word at point for tldr."))))
-
-(defun avy-action-tldr (pt)
-  "Avy action to show tldr for the word at PT."
-  (save-excursion (goto-char pt) (tldr-at-point))
-  (select-window (cdr (ring-ref avy-ring 0))) t)
-
-(setf (alist-get ?l avy-dispatch-alist) 'avy-action-tldr)
-
-(defun man-at-point ()
-  "Open the manual page for the word at point."
-  (interactive)
-  (let ((word (current-word)))
-    (if word
-        (man word)
-      (message "No word at point to look up in the manual."))))
-
-(defun avy-action-man (pt)
-  (save-excursion
+  (defun avy-dictionary-search (pt)
+    "Jump to the point PT and search the definition of the word at that point."
+    (interactive "d")
     (goto-char pt)
-    (man-at-point))
-  (select-window
-   (cdr (ring-ref avy-ring 0)))
-  t)
+    (dictionary-search-dwim))
 
-(setf (alist-get ?M avy-dispatch-alist) 'avy-action-man)
+  ;; Bind avy-dictionary-search to the '=' key in avy-dispatch-alist
+  (setf (alist-get ?D avy-dispatch-alist) 'avy-dictionary-search)
 
-(defun avy-action-dired (pt)
-  (save-excursion
+  (defun avy-quick-sdcv-search-at-point (pt)
+    "Jump to the point PT and search the definition of the word at that point."
+    (interactive "d")
     (goto-char pt)
-    (dired-at-point))
-  (select-window
-   (cdr (ring-ref avy-ring 0)))
-  t)
+    (quick-sdcv-search-at-point))
 
-(setf (alist-get ?l avy-dispatch-alist) 'avy-action-dired)
+  ;; Bind avy-dictionary-search to the '=' key in avy-dispatch-alist
+  (setf (alist-get ?q avy-dispatch-alist) 'avy-quick-sdcv-search-at-point)
 
-(defun avy-action-helpful (pt)
-  (save-excursion
-    (goto-char pt)
-    (helpful-at-point))
-  (select-window
-   (cdr (ring-ref avy-ring 0)))
-  t)
+  (defun tldr-at-point ()
+    "Show tldr for the word at point."
+    (interactive)
+    (let ((word (current-word)))
+      (if word
+          (tldr word)
+        (message "No word at point for tldr."))))
 
-(setf (alist-get ?H avy-dispatch-alist) 'avy-action-helpful)
+  (defun avy-action-tldr (pt)
+    "Avy action to show tldr for the word at PT."
+    (save-excursion (goto-char pt) (tldr-at-point))
+    (select-window (cdr (ring-ref avy-ring 0))) t)
 
-(defun avy-action-embark (pt)
-  (unwind-protect
-      (save-excursion
-        (goto-char pt)
-        (embark-act))
+  (setf (alist-get ?l avy-dispatch-alist) 'avy-action-tldr)
+
+  (defun man-at-point ()
+    "Open the manual page for the word at point."
+    (interactive)
+    (let ((word (current-word)))
+      (if word
+          (man word)
+        (message "No word at point to look up in the manual."))))
+
+  (defun avy-action-man (pt)
+    (save-excursion
+      (goto-char pt)
+      (man-at-point))
     (select-window
-     (cdr (ring-ref avy-ring 0))))
-  t)
+     (cdr (ring-ref avy-ring 0)))
+    t)
 
-(setf (alist-get ?. avy-dispatch-alist) 'avy-action-embark)
+  (setf (alist-get ?M avy-dispatch-alist) 'avy-action-man)
 
-(defun avy-copy-region-between-words ()
-  "Use avy to mark region between two words (including both words) and copy to kill ring."
-  (interactive)
-  (let ((orig-pos (point)))
-    (avy-goto-word-0 1)
-    (forward-word)  ; Move to end of first word
-    (let ((start (point)))
+  (defun avy-action-dired (pt)
+    (save-excursion
+      (goto-char pt)
+      (dired-at-point))
+    (select-window
+     (cdr (ring-ref avy-ring 0)))
+    t)
+
+  (setf (alist-get ?l avy-dispatch-alist) 'avy-action-dired)
+
+  (defun avy-action-helpful (pt)
+    (save-excursion
+      (goto-char pt)
+      (helpful-at-point))
+    (select-window
+     (cdr (ring-ref avy-ring 0)))
+    t)
+
+  (setf (alist-get ?H avy-dispatch-alist) 'avy-action-helpful)
+
+  (defun avy-action-embark (pt)
+    (unwind-protect
+        (save-excursion
+          (goto-char pt)
+          (embark-act))
+      (select-window
+       (cdr (ring-ref avy-ring 0))))
+    t)
+
+  (setf (alist-get ?. avy-dispatch-alist) 'avy-action-embark)
+
+  (defun avy-copy-region-between-words ()
+    "Use avy to mark region between two words (including both words) and copy to kill ring."
+    (interactive)
+    (let ((orig-pos (point)))
       (avy-goto-word-0 1)
-      (forward-word)  ; Move to end of second word
-      (copy-region-as-kill start (point))
-      (goto-char orig-pos))))
+      (forward-word)  ; Move to end of first word
+      (let ((start (point)))
+        (avy-goto-word-0 1)
+        (forward-word)  ; Move to end of second word
+        (copy-region-as-kill start (point))
+        (goto-char orig-pos))))
 
-(defun avy-action-copy-between-words (pt)
-  (save-excursion
-    (goto-char pt)
-    (let ((start (point)))
-      (avy-goto-word-0 1)
-      (forward-word 1)  ; Move to end of first word
-      (copy-region-as-kill start (point))))
-  t)
+  (defun avy-action-copy-between-words (pt)
+    (save-excursion
+      (goto-char pt)
+      (let ((start (point)))
+        (avy-goto-word-0 1)
+        (forward-word 1)  ; Move to end of first word
+        (copy-region-as-kill start (point))))
+    t)
 
-(setf (alist-get ?o avy-dispatch-alist) 'avy-action-copy-between-words)
+  (setf (alist-get ?o avy-dispatch-alist) 'avy-action-copy-between-words))
 
 (use-package aggressive-indent
   :ensure nil
@@ -767,8 +783,6 @@
          ("C-$"        . mc/skip-to-next-like-this)
          ("C-^"         . mc/skip-to-previous-like-this)))
 
-(global-set-key (kbd "<f7>") (lambda () (interactive)  (set-mark-command (universal-argument))))
-
 (use-package eww
   :ensure nil
   :config
@@ -781,14 +795,15 @@
         shr-inhibit-images t
         shr-width 80
         eww-search-prefix nil
-        url-privacy-level '(email agent cookies lastloc)
+        ;; url-privacy-level '(email agent cookies lastloc)
+        url-privacy-level 'none
         url-cookie-untrusted-urls '(".*")
         eww-auto-rename-buffer 'url
         eww-prompt-history '(
-                             "http://zig.doc:3003" ; "https://ziglang.org/documentation/master/"
-                             "http://c.doc:3001" ; "https://en.cppreference.com/w/c"
-                             "http://cpp.doc:3002" ; "https://en.cppreference.com/w/cpp"
-                             "http://linux.doc:3000" ;"https://www.kernel.org/doc/html/latest/"
+                             "http://zig.doc:3003/" ; "https://ziglang.org/documentation/master/"
+                             "http://c.doc:3001/" ; "https://en.cppreference.com/w/c"
+                             "http://cpp.doc:3002/" ; "https://en.cppreference.com/w/cpp"
+                             "http://linux.doc:3000/" ;"https://www.kernel.org/doc/html/latest/"
                                         ; C-h I "https://www.gnu.org/software/emacs/manual/"
                              ;; "https://docs.espressif.com/projects/esp-idf/en/latest/"
                              ;; "https://wiki.osdev.org/Main_Page"
@@ -851,8 +866,6 @@
 
 (advice-add 'recentf-cleanup :around #'my/suppress-recentf-messages)
 
-(setq enable-dir-local-variables nil)
-
 (use-package super-save
   :config
   (super-save-mode +1)
@@ -899,20 +912,7 @@ Optional MAX-RESULTS is the maximum number of results (default 5)."
          (max-results (or max-results 1))
          (include_anwser  t)
          (country (or country "united states"))
-         (include_domains (or include_domains '("github.com" "nixos.org" "ziglang.org"
-                                                "doc.rust-lang.org" "docs.rs" "cppreference.com" "osdev.org" "freertos.org"
-                                                "lvgl.io" "zephyrproject.org" "cmake.org" "gnu.org" "kernel.org"
-                                                "opensource.org" "llvm.org" "gcc.gnu.org" "python.org" "lua.org"
-                                                "elixir-lang.org" "erlang.org" "haskell.org" "opencv.org" "qt.io" "gtk.org"
-                                                "sdl.org" "libsdl.org" "opengl.org" "vulkan.org" "khronos.org" "ietf.org"
-                                                "w3.org" "ietf.org" "ansi.org" "iso.org" "ieee.org" "arm.com" "intel.com"
-                                                "amd.com" "nvidia.com" "raspberrypi.org" "arduino.cc" "espressif.com"
-                                                "st.com" "ti.com" "microchip.com" "atmel.com" "nxp.com" "infineon.com"
-                                                "analog.com" "maximintegrated.com" "cypress.com" "silabs.com"
-                                                "renesas.com" "stackoverflow.com" "hackaday.com" "hackaday.io"
-                                                "datasheetcatalog.com" "datasheets.com" "mouser.com" "digikey.com"
-                                                "stackexchange.com" "qemu-project.org" "electronics.stackexchange.com"
-                                                "emacs.stackexchange.com" "discourse.nixos.org" "ziggit.dev" "emacs-china.org")))
+         (include_domains (or include_domains '("nixos.org" "freertos.org" "zephyrproject.org" "contiki-ng.org" "riot-os.org" "nuttx.apache.org" "mynewt.apache.org" "ziglang.org" "python.org" "lua.org" "elixir-lang.org" "erlang.org" "haskell.org" "cmake.org" "gnu.org" "llvm.org" "gcc.gnu.org" "qt.io" "gtk.org" "sdl.org" "libsdl.org" "qemu-project.org" "cppreference.com" "opensource.org" "ietf.org" "w3.org" "ansi.org" "iso.org" "ieee.org" "man7.org" "discourse.nixos.org" "ziggit.dev" "emacs-china.org" "lwn.net" "kernel.org" "sourceware.org" "debian.org" "archlinux.org" "github.com" "osdev.org" "opencores.org" "riscv.org" "musl-libc.org" "newlib.sourceware.org" "uclibc-ng.org" "hackaday.com" "raspberrypi.org" "arduino.cc" "espressif.com" "gentoo.org")))
          (request-data
           `(("api_key" . ,tavily-api-key)
             ("query" . ,query)
@@ -923,10 +923,10 @@ Optional MAX-RESULTS is the maximum number of results (default 5)."
             ("exclude_domains" . ,exclude_domains)
             ("max_results" . ,max-results))))
     (plz 'post url
-         :headers '(("Content-Type" . "application/json"))
-         :body (json-encode request-data)
-         :as 'string
-         :then (lambda (result) (funcall callback result)))))
+      :headers '(("Content-Type" . "application/json"))
+      :body (json-encode request-data)
+      :as 'string
+      :then (lambda (result) (funcall callback result)))))
 
 (defun tavily-search (query)
   (interactive "sQuery: ")
@@ -970,7 +970,7 @@ Optional MAX-RESULTS is the maximum number of results (default 5)."
      :name "search"
      :async t
      :function (lambda (cb keyword)
-                 (tavily-search-async cb keyword))
+                 (tavily-search-async cb keyword "basic" 5 nil nil nil))
      :description "Search the Internet; If you used any search results, be sure to include the references in your response."
      :args (list '(:name "keyword"
                          :type string
@@ -1174,8 +1174,9 @@ set to ~/note."
 
 (use-package disproject
   :ensure t
-  :custom
-  (disproject-shell-command 'project-shell)
+  :bind
+  ([remap disproject-switch-to-buffer] . consult-project-buffer)
+  ([remap disproject-shell-command] . project-shell)
   :config
   (with-eval-after-load 'disproject
     (defun my-project-shell ()
@@ -1267,7 +1268,7 @@ of the non-current window."
 
   ;; Vertico suspend key binding
   ;; (define-key vertico-map (kbd "C-'") #'vertico-suspend)
-  (global-set-key (kbd "C-'") 'vertico-suspend)
+  (keymap-global-set "C-'" 'vertico-suspend)
 
   ;; For Embark user: avoid adding redundant repeat history after embark-act.
   (defun vertico-repeat--filter-explicit (session)
@@ -1316,36 +1317,36 @@ of the non-current window."
         (while (eq (char-before) 32) (delete-char -1)))))
   (message "%s done" real-this-command))
 
-(global-set-key (kbd "M-o") 'other-window)
-(global-set-key (kbd "C-c a") 'org-agenda)
-(global-set-key (kbd "C-\\ ") 'toggle-input-method)
-(global-set-key (kbd "C-c l") 'org-store-link)
-(global-set-key (kbd "C-<backspace>") 'avy-goto-word-0)
-(global-set-key [remap list-buffers] 'ibuffer)
-(global-set-key [remap switch-to-buffer] 'consult-buffer)
-(global-set-key [remap kill-buffer] 'kill-current-buffer)
-(global-set-key (kbd "M-i") 'imenu)
-(global-set-key (kbd "C-<tab>") 'previous-buffer)
-(global-set-key (kbd "C-<iso-lefttab>") 'next-buffer)
-(global-set-key (kbd "<Cut>") 'kill-region)
-(global-set-key (kbd "<Copy>") 'kill-ring-save)
-(global-set-key (kbd "<Paste>") 'yank)
-(global-set-key (kbd "C-z") 'undo-fu-only-undo)
-(global-set-key (kbd "C-S-Z") 'undo-fu-only-redo)
-(global-set-key (kbd "<Undo>") 'undo-fu-only-undo)
-(global-set-key (kbd "<redo>") 'undo-fu-only-redo)
+(keymap-global-set "M-o" 'other-window)
+(keymap-global-set "C-c a" 'org-agenda)
+(keymap-global-set "C-c l" 'org-store-link)
+(keymap-global-set "C-<backspace>" 'avy-goto-word-0)
+(global-set-key  [remap list-buffers] 'ibuffer)
+(global-set-key  [remap switch-to-buffer] 'consult-buffer)
+(global-set-key  [remap project-switch-to-buffer] 'consult-project-buffer)
+(global-set-key  [remap kill-buffer] 'kill-current-buffer)
+(keymap-global-set "M-i" 'imenu)
+(keymap-global-set "C-<tab>" 'previous-buffer)
+(keymap-global-set "C-<iso-lefttab>" 'next-buffer)
+(keymap-global-set "<Cut>" 'kill-region)
+(keymap-global-set "<Copy>" 'kill-ring-save)
+(keymap-global-set "<Paste>" 'yank)
+;; (keymap-global-set "C-z" 'undo-fu-only-undo)
+;; (keymap-global-set "C-S-Z" 'undo-fu-only-redo)
+(keymap-global-set "<Undo>" 'undo-fu-only-undo)
+(keymap-global-set "<redo>" 'undo-fu-only-redo)
 
-(global-set-key (kbd "ESC <f5>") 'hibernatecall)
+(keymap-global-set "ESC <f5>" 'hibernatecall)
 
-(global-set-key (kbd "C-x C-d") (lambda ()
-                                  (interactive)
-                                  (duplicate-line)
-                                  (next-line)))
+(keymap-global-set "C-x C-d" (lambda ()
+                               (interactive)
+                               (duplicate-line)
+                               (next-line)))
 
-(global-set-key (kbd "<f8>") 'my-toggle-other-window)
-(global-set-key (kbd "<WakeUp>") 'wakeupcall)
-(global-set-key (kbd "<mouse-8>") 'scroll-up-command)
-(global-set-key (kbd "<mouse-9>") 'scroll-down-command)
+(keymap-global-set "<f8>" 'my-toggle-other-window)
+(keymap-global-set "<WakeUp>" 'wakeupcall)
+(keymap-global-set "<mouse-8>" 'scroll-up-command)
+(keymap-global-set "<mouse-9>" 'scroll-down-command)
 (defun donothing () (interactive)(message ""))
 
 (move-text-default-bindings)
@@ -1379,7 +1380,7 @@ of the non-current window."
 (add-hook 'after-init-hook #'delete-selection-mode)
 (add-hook 'after-init-hook #'global-hide-mode-line-mode)
 (add-hook 'rust-mode-hook #'cargo-minor-mode)
-(add-hook 'vterm-mode-hook (lambda () (compilation-shell-minor-mode 1) (define-key vterm-copy-mode-map (kbd "C-<return>") 'compile-goto-error)))
+
 (add-hook 'after-init-hook #'window-divider-mode)
 
 (defun hibernatecall()
@@ -1392,14 +1393,8 @@ of the non-current window."
   (sleep-for 1)
   (shell-command "systemctl hibernate"))
 
-(defun wtf()
-  )
-
 (defun wakeupcall()
   (interactive)
-  ;; (if (= wakeupduplicate 0)
-  ;; (setq wakeupduplicate 1)
-  ;; (wtf))
   (find-file "~/.hibernate")
   (goto-char (point-max))
   (beginning-of-line)
@@ -1407,6 +1402,8 @@ of the non-current window."
                    (/ (time-to-seconds (time-since hibernatetime) ) 3600)))
   (shell-command "notify-send -t 3000 'Have A Nice Time!'")
   (shell-command "paperlike-cli -i2c /dev/i2c-4 -clear;")
+  (previous-line)
+  (kill-whole-line)
   (save-excursion
     (find-file "~/.paperlike_state")
     (erase-buffer)
@@ -1417,21 +1414,6 @@ of the non-current window."
   (sleep-for 1)
   (bookmark-jump "c")
   (clear-minibuffer-message))
-
-;; (add-hook 'c-mode-hook #'eglot-ensure)
-
-;; (add-hook 'c-mode-hook
-;;           (lambda ()
-;; 	        (unless (or (file-exists-p "makefile")
-;; 		                (file-exists-p "Makefile"))
-;;               (setq-local compile-command
-;; 		                  (concat "make -k -B "
-;; 			                      (if buffer-file-name
-;; 			                          (shell-quote-argument
-;; 			                           (file-name-sans-extension buffer-file-name))))))))
-
-;; (setq compile-command "make -k -B")
-(setq compile-command "")
 
 (use-package pyim
   :ensure t
@@ -1470,8 +1452,7 @@ of the non-current window."
         (when (= exsist 0)
           (message "no such shit"))
         (kill-buffer)
-        (switch-to-buffer old)
-        )))
+        (switch-to-buffer old))))
 
   (pyim-scheme-add
    '(hmdz
@@ -1487,60 +1468,54 @@ of the non-current window."
   ;;----'默认码表'
   (pyim-default-scheme 'hmdz)
   (setq pyim-process-autoselector nil)
-  ;; (setq-default pyim-punctuation-translate-p '(no))
   (setq pyim-dhook-verbose nil)
   (setq pyim-dicts nil)  ; Initialize the list if it's not already defined
   (setq pyim-cloudim nil)
   (setq pyim-candidates-search-buffer-p nil)
   (setq pyim-enable-shortcode nil)
-  (setq-default pyim-english-input-switch-functions '())
-  ;;               '(pyim-probe-program-mode)
-  ;;                 pyim-probe-isearch-mode
-  ;;                 pyim-probe-org-speed-commands
-  ;; (setq-default pyim-english-input-switch-functions
-  ;;               '(pyim-probe-program-mode
-  ;;                 pyim-probe-isearch-mode
-  ;;                 pyim-probe-org-speed-commands
-  ;;                 pyim-probe-org-structure-template))
-  (setq pyim-punctuation-dict
-        '(("'" "‘" "’")
-          ("\"" "“" "”")
-          ("_" "——")
-          ("^" "…")
-          ("]" "】")
-          ("[" "【")
-          ("@" "◎")
-          ("?" "？")
-          ;; (">" "》")
-          (">" ">")
-          ;; ("=" "＝")
-          ("=" "=")
-          ;; ("<" "《")
-          ("<" "<")
-          (";" "；")
-          (":" "：")
-          ("\\" "、")
-          ("." "。")
-          ("-" "-")
-          ("," "，")
-          ;; ("+" "＋")
-          ("+" "+")
-          ("*" "*")
-          ;; (")" "）")
-          (")" ")")
-          ("(" "(")
-          ;; ("(" "（")
-          ("&" "※")
-          ("%" "％")
-          ("$" "￥")
-          ;; ("#" "＃")
-          ("#" "#")
-          ("!" "！")
-          ("`" "・")
-          ("~" "～")
-          ("}" "』")
-          ("|" "÷")
-          ("{" "『")))
+  (setq-default pyim-english-input-switch-functions '(pyim-probe-program-mode))
+  (setq pyim-punctuation-dict '())
+  ;; (setq pyim-punctuation-dict
+  ;;       '(("'" "‘" "’")
+  ;;         ("\"" "“" "”")
+  ;;         ("_" "——")
+  ;;         ("^" "…")
+  ;;         ;; ("]" "】")
+  ;;         ("]" "]")
+  ;;         ;; ("[" "【")
+  ;;         ("[" "[")
+  ;;         ("@" "◎")
+  ;;         ("?" "？")
+  ;;         ;; (">" "》")
+  ;;         (">" ">")
+  ;;         ;; ("=" "＝")
+  ;;         ("=" "=")
+  ;;         ;; ("<" "《")
+  ;;         ("<" "<")
+  ;;         (";" "；")
+  ;;         (":" "：")
+  ;;         ("\\" "、")
+  ;;         ("." "。")
+  ;;         ("-" "-")
+  ;;         ("," "，")
+  ;;         ;; ("+" "＋")
+  ;;         ("+" "+")
+  ;;         ("*" "*")
+  ;;         ;; (")" "）")
+  ;;         (")" ")")
+  ;;         ("(" "(")
+  ;;         ;; ("(" "（")
+  ;;         ("&" "※")
+  ;;         ("%" "％")
+  ;;         ("$" "￥")
+  ;;         ;; ("#" "＃")
+  ;;         ("#" "#")
+  ;;         ("!" "！")
+  ;;         ("`" "・")
+  ;;         ("~" "～")
+  ;;         ("}" "』")
+  ;;         ("|" "÷")
+  ;;         ("{" "『")))
   (add-to-list 'pyim-dicts
                '(:name "hmdz" :file "~/.emacs.d/hmdz.pyim")))
 
@@ -1581,7 +1556,7 @@ of the non-current window."
           (find-file epub-file)
         (message "EPUB file not found: %s" epub-file))))))
 
-(global-set-key (kbd "ESC <next>") 'switchepubinfo)
+(keymap-global-set "ESC <next>" 'switchepubinfo)
 
 (defface my-fringe-gdb
   '((t (:background "white" :foreground "black")))
@@ -1640,8 +1615,7 @@ of the non-current window."
   ;; :config
   (require 'consult-gh-transient)
   ;; Enable default keybindings (e.g. for commenting on issues, prs, ...)
-  ;; (consult-gh-enable-default-keybindings)
-  )
+  (consult-gh-enable-default-keybindings))
 
 (use-package consult-gh-forge
   :after consult-gh
@@ -1695,8 +1669,6 @@ If region is active:
     (goto-char (line-end-position))
     (exchange-point-and-mark))))
 
-;; (global-set-key (kbd "C-c l") 'mark-current-line)
-
 (defun my/nix-store-shorten-paths ()
   "Replace long /nix/store paths with shortened ...-pkg-version."
   (let ((inhibit-read-only t))
@@ -1712,20 +1684,20 @@ If region is active:
 (remove-hook 'compilation-filter-hook #'my/compilation-filter-hook)
 
 (define-prefix-command 'nav-map)
-(global-set-key (kbd "C-c C-~") 'nav-map)
+(keymap-global-set "C-c C-~" 'nav-map)
 (define-key nav-map (kbd "g") #'er/expand-region)
 (define-key nav-map (kbd "m") #'toggle-truncate-lines)
 (define-key nav-map (kbd "v") (lambda () (interactive) (recenter-top-bottom 123)))
 (define-key nav-map (kbd "b") #'quick-sdcv-search-at-point)
 
 (define-prefix-command 'mos-map)
-(global-set-key (kbd "C-c C-;") 'mos-map)
+(keymap-global-set "C-c C-;" 'mos-map)
 (define-key mos-map (kbd "q") #'gptel-menu)
 (define-key mos-map (kbd "w") #'consult-gh)
 (define-key mos-map (kbd "f") #'rg-dwim)
 (define-key mos-map (kbd "p") #'disproject-dispatch)
 (define-key mos-map (kbd "b") #'ibuffer)
-(define-key mos-map (kbd "j") #'font-lock-mode)
+(define-key mos-map (kbd "j") #'global-font-lock-mode)
 (define-key mos-map (kbd "l") #'tldr)
 (define-key mos-map (kbd "u") #'delete-all-space)
 (define-key mos-map (kbd "y") #'global-hide-mode-line-mode)
@@ -1736,39 +1708,39 @@ If region is active:
 (define-key mos-map (kbd "t") #'consult-buffer)
 (define-key mos-map (kbd "m") #'man)
 (define-key mos-map (kbd "z") #'search-at-point)
-(define-key mos-map (kbd "c") #'my/compile-with-history)
+(define-key mos-map (kbd "c") #'compile)
 (define-key mos-map (kbd "d") #'dired)
 (define-key mos-map (kbd "v") #'multi-vterm-project)
 (define-key mos-map (kbd "k") #'kill-current-buffer)
 (define-key mos-map (kbd "SPC") #'indent-rigidly)
 
-(global-set-key (kbd "s-m") #'switch-to-gptel)
-(global-set-key (kbd "s-M") (lambda () (interactive) (toggle-monitor)))
-(global-set-key (kbd "s-t")  (lambda () (interactive) (recenter-top-bottom 0)))
-(global-set-key (kbd "s-w")  #'eww)
-
-(global-set-key (kbd "<Tools>") #'tavily-search)
-(global-set-key (kbd "<Launch5>") #'trashed)
-(global-set-key (kbd "<Launch6>") #'one-build)
-(global-set-key (kbd "<Launch7>") #'xah-clean-whitespace)
-(global-set-key (kbd "<Launch8>") #'delete-duplicate-lines)
-(global-set-key (kbd "<Launch9>") #'my-toggle-font)
-(global-set-key (kbd "<AudioMicMute>") #'donothing)
-(global-set-key (kbd "<TouchpadToggle>") #'transient-copy-menu-text)
+(keymap-global-set "s-m" #'switch-to-gptel)
+(keymap-global-set "s-M" (lambda () (interactive) (toggle-monitor)))
+(keymap-global-set "s-t"  (lambda () (interactive) (recenter-top-bottom 0)))
+(keymap-global-set "s-w"  #'eww)
+(keymap-global-set "<Tools>" #'tavily-search)
+(keymap-global-set "<Launch5>" #'trashed)
+(keymap-global-set "<Launch6>" #'one-build)
+(keymap-global-set "<Launch7>" #'xah-clean-whitespace)
+(keymap-global-set "<Launch8>" #'delete-duplicate-lines)
+(keymap-global-set "<Launch9>" #'my-toggle-font)
+(keymap-global-set "<AudioMicMute>" #'magit-log-buffer-file)
+(keymap-global-set "<TouchpadToggle>" #'transient-copy-menu-text)
+(keymap-global-set "<f7>" (lambda () (interactive)  (set-mark-command (universal-argument))))
 
 (add-hook 'shell-mode-hook  'with-editor-export-editor)
 (add-hook 'eshell-mode-hook 'with-editor-export-editor)
 (add-hook 'term-exec-hook   'with-editor-export-editor)
 (add-hook 'vterm-mode-hook  'with-editor-export-editor)
 
-(defconst ghub-default-host "api.github.com")
-
 (setq gdb-many-windows nil)
 (setq gdb-show-main t)
+(setq compile-command "")
+(setq enable-dir-local-variables nil)
 
 (defvar my-alternate-font "-DAMA-UbuntuMono Nerd Font-regular-normal-normal-*-13-*-*-*-m-0-iso10646-1")
 (defvar my-default-font "bookerly")
-(setq fontfont 0)
+(defvar fontfont 1)
 (defun my-toggle-font ()
   "Toggle between UbuntuMono and bookerly fonts."
   (interactive)
@@ -1798,7 +1770,8 @@ If region is active:
           (princ url)
           (princ "\n"))))))
 
-(use-package one :ensure t :config
+(use-package one :ensure t
+  :config
   (defun one-build ()
     "Build website of the current buffer under `./public/' subdirectory.
 Specifically:
@@ -1808,19 +1781,63 @@ Specifically:
 See `one-render-pages'."
     (interactive)
     (when (file-exists-p "./public/")
-      (dolist (file (directory-files "./public/" 'full "^[^.]"))
-        (unless (string-match-p "/\\.git/?$" file)
-          (if (file-directory-p file)
-              (delete-directory file t)
-            (delete-file file)))))
+      (delete-directory "./public/blog" t)
+      (delete-file "index.html")
+      ;; (dolist (file (directory-files "./public/" 'full "^[^.]"))
+      ;;   (unless (string-match-p "/\\.git/?$" file)
+      ;;     (if (file-directory-p file)
+      ;;         (delete-directory file t)
+      ;;       (delete-file file))))
+      )
     (one-copy-assets-to-public)
     (one-render-pages)))
 
-(defun my/compile-with-history ()
-  "Run compile with history selection using Vertico."
+(use-package no-emoji
+  :ensure t
+  :config
+  (setq no-emoji-display-table (make-display-table))
+  (global-no-emoji-minor-mode 1))
+
+(setq shell-command-switch "-ic")
+
+(add-hook 'fundamental-mode-hook
+          (lambda ()
+            (setq-local comment-start "#")
+            (setq-local comment-end "")))
+
+(defun swtichinsoque()
   (interactive)
-  (let ((command (completing-read "Compile command: "
-                                  compile-history
-                                  nil nil
-                                  compile-command)))
-    (compile command)))
+  (if(string=  (c-get-current-file) "solution")
+      (find-file "question.org")(find-file "solution.cpp")))
+
+(defun swtichinlang()
+  (interactive)
+  (if(string=  (file-name-nondirectory (buffer-file-name))
+               "solution.cpp")
+      (find-file "solution.rs")(find-file "solution.cpp")))
+
+(keymap-global-set "s-s" 'swtichinsoque)
+(keymap-global-set "s-S" 'swtichinlang)
+
+(defalias 'nextleetcode
+  (kmacro
+   "C-n d <return> ^ <down> <return> M-< C-s q u e s t i o n <up> <down> <return>"))
+
+(keymap-global-set "s-n" 'nextleetcode)
+
+(defalias 'preleetcode
+  (kmacro
+   "C-n d <return> ^ <up> <return> M-< C-s q u e s t i o n <end> <left> <return>"))
+
+(keymap-global-set "s-p" 'preleetcode)
+
+(setq face-font-rescale-alist '(("Source Han" . 0.9)))
+
+(add-hook 'c-mode-hook #'eglot-ensure)
+(add-hook 'rust-mode-hook #'eglot-ensure)
+(add-hook 'c++-mode-hook #'eglot-ensure)
+
+(setq resize-mini-windows nil)
+
+(setq vterm-always-compile-module t)
+
