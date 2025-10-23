@@ -1,4 +1,72 @@
 ;;; -*- lexical-binding: t; -*-
+(global-set-key  [remap kill-buffer] 'kill-current-buffer)
+(global-set-key  [remap list-buffers] 'ibuffer)
+(global-set-key  [remap project-switch-to-buffer] 'consult-project-buffer)
+(global-set-key  [remap switch-to-buffer] 'consult-buffer)
+(keymap-global-set "<AudioMicMute>" #'magit-log-buffer-file)
+(keymap-global-set "<Launch5>" #'trashed)
+(keymap-global-set "<Launch6>" #'one-build)
+(keymap-global-set "<Launch7>" #'xah-clean-whitespace)
+(keymap-global-set "<Launch8>" #'delete-duplicate-lines)
+(keymap-global-set "<Launch9>" #'my-toggle-font)
+(keymap-global-set "<Tools>" #'tavily-search)
+(keymap-global-set "<TouchpadToggle>" #'transient-copy-menu-text)
+(keymap-global-set "<WakeUp>" 'wakeupcall)
+(keymap-global-set "<f7>" (lambda () (interactive)  (set-mark-command (universal-argument))))
+(keymap-global-set "<f8>" 'my-toggle-other-window)
+(keymap-global-set "<mouse-8>" 'scroll-up-command)
+(keymap-global-set "<mouse-9>" 'scroll-down-command)
+(keymap-global-set "C-<backspace>" 'avy-goto-word-0)
+(keymap-global-set "C-<iso-lefttab>" 'next-buffer)
+(keymap-global-set "C-<return>" (lambda () (interactive) (duplicate-dwim)(next-line)))
+(keymap-global-set "C-<tab>" 'previous-buffer)
+(keymap-global-set "C-c a" 'org-agenda)
+(keymap-global-set "C-c l" 'org-store-link)
+(keymap-global-set "ESC <f5>" 'hibernatecall)
+(keymap-global-set "M-i" 'imenu)
+(keymap-global-set "M-o" (lambda () (interactive)(other-window -1)))
+
+(keymap-global-set "s-J" #'upcase-initials-region)
+(keymap-global-set "s-L" #'downcase-region)
+(keymap-global-set "s-M" #'switch-to-gptel)
+(keymap-global-set "s-U" #'upcase-region)
+(keymap-global-set "s-K" #'avy-kill-region)
+
+(keymap-global-set "s-t"  (lambda () (interactive) (recenter-top-bottom 0)))
+(keymap-global-set "s-w"  #'eww)
+
+(define-prefix-command 'nav-map)
+(keymap-global-set "C-c C-~" 'nav-map)
+(define-key nav-map (kbd "g") #'er/expand-region)
+(define-key nav-map (kbd "m") #'toggle-truncate-lines)
+(define-key nav-map (kbd "v") (lambda () (interactive) (recenter-top-bottom 123)))
+(define-key nav-map (kbd "b") #'quick-sdcv-search-at-point)
+(define-key nav-map (kbd "j") #'bookmark-jump)
+(define-key nav-map (kbd "l") #'recompile)
+(define-key nav-map (kbd "u") #'multi-vterm-prev)
+(define-key nav-map (kbd "y") #'multi-vterm-next)
+(define-key nav-map (kbd "'") #'multi-vterm)
+
+(define-prefix-command 'mos-map)
+(keymap-global-set "C-c C-;" 'mos-map)
+(define-key mos-map (kbd "q") #'pomm-third-time-switch)
+(define-key mos-map (kbd "w") #'consult-gh)
+(define-key mos-map (kbd "f") #'rg-dwim)
+(define-key mos-map (kbd "p") #'disproject-dispatch)
+(define-key mos-map (kbd "b") #'ibuffer)
+(define-key mos-map (kbd "j") #'font-lock-mode)
+(define-key mos-map (kbd "l") #'copy-from-above-command)
+(define-key mos-map (kbd "u") #'delete-all-space)
+(define-key mos-map (kbd "y") #'global-hide-mode-line-mode)
+(define-key mos-map (kbd "'") #'vertico-flat-mode)
+(define-key mos-map (kbd "m") #'devdocs-browser-open)
+(define-key mos-map (kbd "z") #'search-at-point)
+(define-key mos-map (kbd "c") #'compile)
+(define-key mos-map (kbd "d") #'dired)
+(define-key mos-map (kbd "v") #'multi-vterm-project)
+(define-key mos-map (kbd "k") #'kill-current-buffer)
+(define-key mos-map (kbd "SPC") #'indent-rigidly)
+
 (require 'use-package)
 ;; Ensure adding the following compile-angel code at the very beginning
 ;; of your `~/.emacs.d/post-init.el` file, before all other packages.
@@ -143,7 +211,7 @@
          ("M-g I" . consult-imenu-multi)
          ;; M-s bindings in `search-map'
          ("M-s d" . consult-find)
-         ("M-s c" . consult-locate)
+         ("M-s c" . consult-fd)
          ("M-s g" . consult-grep)
          ("M-s G" . consult-git-grep)
          ("M-s r" . consult-ripgrep)
@@ -418,7 +486,7 @@
   (org-fontify-quote-and-verse-blocks t)
   (org-confirm-babel-evaluate nil)
   (org-startup-with-inline-images t)
-  (org-agenda-files (directory-files-recursively "~/talkbase/" "\\.org$"))
+  ;; (org-agenda-files (directory-files-recursively "~/talkbase/" "\\.org$"))
   (org-todo-keywords
    '((sequence "TODO(t)"  "|" "DONE(d)")
      (sequence "REPORT(r)" "BUG(b)" "KNOWNCAUSE(k)" "|" "FIXED(f)")))
@@ -454,7 +522,7 @@
 (defvar monitorcli "paperlike-cli -i2c ")
 (defvar monitorarg '(" -contrast " " -speed " " -mode "))
 (defvar deepink '("9" "5" "1"))
-(defvar shallow '("2" "2" "3"))
+(defvar shallow '("2" "5" "3"))
 
 (defun read-monitor ()
   (progn
@@ -464,9 +532,13 @@
                       monitorpath
                       (car (nthcdr number monitorarg))
                       (car (nthcdr number deepink))))
-      (sleep-for 0.5)
+      (sleep-for 1)
       ))
-  (setq monitor-state 'read))
+  (setq monitor-state 'read)
+  (sleep-for 1)
+  (async-shell-command (concat monitorcli monitorpath " -clear"))
+  (sleep-for 1)
+  (delete-other-windows))
 
 (defun watch-monitor ()
   (progn
@@ -476,28 +548,27 @@
                       monitorpath
                       (car (nthcdr number monitorarg))
                       (car (nthcdr number shallow))))
-      (sleep-for 0.5)
+      (sleep-for 1)
       ))
-  (setq monitor-state 'watch))
+  (setq monitor-state 'watch)
+  (sleep-for 1)
+  (async-shell-command (concat monitorcli monitorpath " -clear"))
+  (sleep-for 1)
+  (delete-other-windows))
 
 (defun toggle-monitor ()
   (interactive)
   (if (eq monitor-state 'read)
-      (progn
-        (watch-monitor)
-        (start-process "notify" nil "notify-send" "Reminder" "move your mouse, now!")
-        (run-at-time "15 second" nil
-                     (lambda ()
-                       (start-process "notify" nil "notify-send" "Reminder" "did you missed that?")
-                       (read-monitor)
-                       (sleep-for 1))))
-    (progn
-      (read-monitor)
-      (sleep-for 1)))
-  (progn
-    (shell-command (concat monitorcli monitorpath " -clear"))
-    (sleep-for 1)
-    (delete-other-windows)))
+      ;; (progn
+      (watch-monitor)
+    ;; (start-process "notify" nil "notify-send" "Reminder" "move your mouse, now!")
+    ;; (run-at-time "15 second" nil
+    ;;              (lambda ()
+    ;;                (start-process "notify" nil "notify-send" "Reminder" "did you missed that?")
+    ;;                (read-monitor))))
+    (read-monitor))
+  (sleep-for 1)
+  (donothing))
 
 (add-hook 'minibuffer-setup-hook #'vertico-repeat-save)
 
@@ -755,59 +826,6 @@
          ("C-$"        . mc/skip-to-next-like-this)
          ("C-^"         . mc/skip-to-previous-like-this)))
 
-(use-package eww
-  :ensure nil
-  :config
-  (setq browse-url-browser-function 'eww-browse-url
-        shr-use-colors nil
-        eww-header-line-format ""
-        shr-bullet "• "
-        shr-folding-mode t
-        shr-use-fonts nil
-        shr-inhibit-images nil
-        shr-width 80
-        eww-search-prefix nil
-        ;; url-privacy-level '(email agent cookies lastloc)
-        url-privacy-level 'none
-        url-cookie-untrusted-urls '(".*")
-        eww-auto-rename-buffer 'url
-        eww-prompt-history '(
-                             "http://zig.doc:3003/" ; "https://ziglang.org/documentation/master/"
-                             "http://c.doc:3001/" ; "https://en.cppreference.com/w/c"
-                             "http://cpp.doc:3002/" ; "https://en.cppreference.com/w/cpp"
-                             "http://linux.doc:3000/" ;"https://www.kernel.org/doc/html/latest/"
-                                        ; C-h I "https://www.gnu.org/software/emacs/manual/"
-                             ;; "https://docs.espressif.com/projects/esp-idf/en/latest/"
-                             ;; "https://wiki.osdev.org/Main_Page"
-                             ;; "https://docs.zephyrproject.org/latest/"
-                             ;; "https://docs.lvgl.io/"
-                             ))
-  (with-eval-after-load 'eww
-    (defun eww-toggle-images ()
-      "Toggle whether or not to display images."
-      (interactive nil eww-mode)
-      (setq shr-inhibit-images (not shr-inhibit-images))
-      (eww-reload)
-      (message "Images are now %s"
-               (if shr-inhibit-images "off" "on"))
-      (if shr-inhibit-images  (donothing) (run-at-time "5" nil
-                                                       (lambda () (progn
-                                                                    (start-process "notify" nil "notify-send" "Reminder" "看一眼就够了")
-                                                                    (setq shr-inhibit-images (not shr-inhibit-images))
-                                                                    (eww-reload))))))
-    (defun my-eww-edit-url ()
-      "Edit the current EWW URL and reload the page."
-      (interactive)
-      (unless (derived-mode-p 'eww-mode)
-        (user-error "Not in EWW buffer"))
-      (let ((current-url (plist-get eww-data :url)))
-        (setq eww-data (plist-put eww-data :url
-                                  (read-string "Edit URL: " current-url)))
-        (eww-reload))))
-  (add-hook 'eww-after-render-hook 'eww-readable)  ;; Enable readable mode by default
-  :bind (:map eww-mode-map
-              ("e" . my-eww-edit-url)))
-
 (use-package recentf
   :ensure nil
   :commands (recentf-mode recentf-cleanup)
@@ -852,283 +870,6 @@
   (if (equal  (current-buffer) (gptel "*deepseek*"))
       (previous-buffer)
     (switch-to-buffer "*deepseek*" )))
-
-(defun tavily-search-async (callback query &optional search-depth max-results exclude_domains country include_domains)
-  "Perform a search using the Tavily API and return results as JSON string.
-API-KEY is your Tavily API key.
-QUERY is the search query string.
-Optional SEARCH-DEPTH is either \"basic\" (default) or \"advanced\".
-Optional MAX-RESULTS is the maximum number of results (default 5)."
-  (require 'plz)
-  (let* ((plz-curl-default-args (cons "-k" plz-curl-default-args))
-                                        ;"chunks_per_source": 3,
-                                        ;"include_raw_content": true
-                                        ;"time_range": "month"
-                                        ;"start_date": "2025-01-01",
-                                        ;"end_date": "2025-02-01"
-                                        ;"topic": "news",
-                                        ;"days": 1
-                                        ;"auto_parameters": true,
-                                        ;"search_depth": "basic", // Overrides 'advanced'
-                                        ;"include_answer": true,
-                                        ;"max_results": 10
-                                        ;"include_domains": ["linkedin.com/in"]
-                                        ;"include_domains": [ "crunchbase.com", "techcrunch.com", "pitchbook.com" ]
-                                        ;"exclude_domains": ["espn.com","vogue.com"]
-                                        ;"include_domains": ["*.com"]
-                                        ;"exclude_domains": ["*.is"]
-                                        ;"topic": "general",
-                                        ;"country": "united states"
-         (url "https://api.tavily.com/search")
-         (search-depth (or search-depth "advanced"))
-         (max-results (or max-results 1))
-         (include_anwser  t)
-         (country (or country "united states"))
-         (include_domains (or include_domains '("nixos.org" "freertos.org" "zephyrproject.org" "contiki-ng.org" "riot-os.org" "nuttx.apache.org" "mynewt.apache.org" "ziglang.org" "python.org" "lua.org" "elixir-lang.org" "erlang.org" "haskell.org" "cmake.org" "gnu.org" "llvm.org" "gcc.gnu.org" "qt.io" "gtk.org" "sdl.org" "libsdl.org" "qemu-project.org" "cppreference.com" "opensource.org" "ietf.org" "w3.org" "ansi.org" "iso.org" "ieee.org" "man7.org" "discourse.nixos.org" "ziggit.dev" "emacs-china.org" "lwn.net" "kernel.org" "sourceware.org" "debian.org" "archlinux.org" "github.com" "osdev.org" "opencores.org" "riscv.org" "musl-libc.org" "newlib.sourceware.org" "uclibc-ng.org" "hackaday.com" "raspberrypi.org" "arduino.cc" "espressif.com" "gentoo.org")))
-         (request-data
-          `(("api_key" . ,tavily-api-key)
-            ("query" . ,query)
-            ("search_depth" . ,search-depth)
-            ("country" . ,country)
-            ("include_domains" . ,include_domains)
-            ("include_anwser" . ,include_anwser)
-            ("exclude_domains" . ,exclude_domains)
-            ("max_results" . ,max-results))))
-    (plz 'post url
-      :headers '(("Content-Type" . "application/json"))
-      :body (json-encode request-data)
-      :as 'string
-      :then (lambda (result) (funcall callback result)))))
-
-(defun tavily-search (query)
-  (interactive "sQuery: ")
-  (tavily-search-async
-   (lambda (result)
-     ;; (split-window)
-     (let ((buf (get-buffer-create "*tavily-search-result*")))
-       (switch-to-buffer buf)
-       (read-only-mode 0)
-       (erase-buffer)
-       (org-mode)
-       (insert (tavily-result-to-org result))
-       (goto-char (point-min))
-       (read-only-mode 1)
-       ))
-   query))
-
-(defun tavily-result-to-org (json-result)
-  (let* ((data (json-read-from-string json-result))
-         (results (alist-get 'results data)))
-    (mapconcat (lambda (item)
-                 (format "* [[%s][%s]]\n  %s"
-                         (alist-get 'url item)
-                         (alist-get 'title item)
-                         (alist-get 'content item)))
-               results
-               "\n\n")))
-
-(setq tavily-api-key
-      (with-temp-buffer
-        (insert-file-contents "/run/secrets/tavily_apikey")
-        (buffer-string)))
-
-(use-package gptel
-  :init
-  (require 'gptel-org)
-  :config
-  (with-eval-after-load 'gptel
-    (gptel-make-tool
-     :category "web"
-     :name "search"
-     :async t
-     :function (lambda (cb keyword)
-                 (tavily-search-async cb keyword "basic" 5 nil nil nil))
-     :description "Search the Internet; If you used any search results, be sure to include the references in your response."
-     :args (list '(:name "keyword"
-                         :type string
-                         :description "The keyword to search")))
-
-    (gptel-make-tool
-     :name "create_python_repl"
-     :function (lambda ()
-                 (run-python nil t)
-                 (pop-to-buffer (python-shell-get-buffer)))
-     :description "Create a new python repl for this session"
-     :args nil
-     :category "emacs")
-
-    (gptel-make-tool
-     :name "send_python_to_repl"
-     :function (lambda (code)
-                 (python-shell-send-string code))
-     :args (list '(:name "code"
-                         :type string
-                         :description "python code to execute"))
-     :description "Send some python code to the python repl for this session and execute it"
-     :category "emacs")
-
-    (gptel-make-tool
-     :function (lambda (url)
-                 (with-current-buffer (url-retrieve-synchronously url)
-                   (goto-char (point-min)) (forward-paragraph)
-                   (let ((dom (libxml-parse-html-region (point) (point-max))))
-                     (run-at-time 0 nil #'kill-buffer (current-buffer))
-                     (with-temp-buffer
-                       (shr-insert-document dom)
-                       (buffer-substring-no-properties (point-min) (point-max))))))
-     :name "read_url"
-     :description "Fetch and read the contents of a URL"
-     :args (list '(:name "url"
-                         :type "string"
-                         :description "The URL to read"))
-     :category "web")
-
-    (gptel-make-tool
-     :function (lambda (buffer text)
-                 (with-current-buffer (get-buffer-create buffer)
-                   (save-excursion
-                     (goto-char (point-max))
-                     (insert text)))
-                 (format "Appended text to buffer %s" buffer))
-     :name "append_to_buffer"
-     :description "Append text to the an Emacs buffer.  If the buffer does not exist, it will be created."
-     :args (list '(:name "buffer"
-                         :type "string"
-                         :description "The name of the buffer to append text to.")
-                 '(:name "text"
-                         :type "string"
-                         :description "The text to append to the buffer."))
-     :category "emacs")
-
-    ;; Message buffer logging tool
-    (gptel-make-tool
-     :function (lambda (text)
-                 (message "%s" text)
-                 (format "Message sent: %s" text))
-     :name "echo_message"
-     :description "Send a message to the *Messages* buffer"
-     :args (list '(:name "text"
-                         :type "string"
-                         :description "The text to send to the messages buffer"))
-     :category "emacs")
-
-    ;; buffer retrieval tool
-    (gptel-make-tool
-     :function (lambda (buffer)
-                 (unless (buffer-live-p (get-buffer buffer))
-                   (error "Error: buffer %s is not live." buffer))
-                 (with-current-buffer  buffer
-                   (buffer-substring-no-properties (point-min) (point-max))))
-     :name "read_buffer"
-     :description "Return the contents of an Emacs buffer"
-     :args (list '(:name "buffer"
-                         :type "string"
-                         :description "The name of the buffer whose contents are to be retrieved"))
-     :category "emacs")
-
-    (gptel-make-tool
-     :function (lambda (directory)
-                 (mapconcat #'identity
-                            (directory-files directory)
-                            "\n"))
-     :name "list_directory"
-     :description "List the contents of a given directory"
-     :args (list '(:name "directory"
-                         :type "string"
-                         :description "The path to the directory to list"))
-     :category "filesystem")
-
-    (gptel-make-tool
-     :function (lambda (parent name)
-                 (condition-case nil
-                     (progn
-                       (make-directory (expand-file-name name parent) t)
-                       (format "Directory %s created/verified in %s" name parent))
-                   (error (format "Error creating directory %s in %s" name parent))))
-     :name "make_directory"
-     :description "Create a new directory with the given name in the specified parent directory"
-     :args (list '(:name "parent"
-                         :type "string"
-                         :description "The parent directory where the new directory should be created, e.g. /tmp")
-                 '(:name "name"
-                         :type "string"
-                         :description "The name of the new directory to create, e.g. testdir"))
-     :category "filesystem")
-
-    (gptel-make-tool
-     :function (lambda (path filename content)
-                 (let ((full-path (expand-file-name filename path)))
-                   (with-temp-buffer
-                     (insert content)
-                     (write-file full-path))
-                   (format "Created file %s in %s" filename path)))
-     :name "create_file"
-     :description "Create a new file with the specified content"
-     :args (list '(:name "path"
-                         :type "string"
-                         :description "The directory where to create the file")
-                 '(:name "filename"
-                         :type "string"
-                         :description "The name of the file to create")
-                 '(:name "content"
-                         :type "string"
-                         :description "The content to write to the file"))
-     :category "filesystem")
-
-    (gptel-make-tool
-     :function (lambda (filepath)
-                 (with-temp-buffer
-                   (insert-file-contents (expand-file-name filepath))
-                   (buffer-string)))
-     :name "read_file"
-     :description "Read and display the contents of a file"
-     :args (list '(:name "filepath"
-                         :type "string"
-                         :description "Path to the file to read.  Supports relative paths and ~."))
-     :category "filesystem"))
-
-  (defun ant/gptel-save-buffer ()
-    "Save the current GPTEL buffer with the default directory
-set to ~/note."
-    (interactive)
-    (let ((default-directory "~/talkbase/gpt/"))
-      (call-interactively #'save-buffer)))
-
-  (defun ant/gptel-load-session ()
-    "Load a gptel session from ~/notes directory."
-    (interactive)
-    (let ((default-directory "~/.leetcode/code/"))
-      (let* ((files (directory-files default-directory t ".+\\.org$"))
-             (file (completing-read "Select session file: " files nil t)))
-        (when file
-          (find-file file)
-          (gptel-mode)))))
-
-  (setq  gptel-default-mode 'org-mode)
-  ;; OPTIONAL configuration
-
-  (setq deepseek-api-key
-        (with-temp-buffer
-          (insert-file-contents "/run/secrets/deepseek_apikey")
-          (buffer-string)))
-
-  (setq gptel-model   'deepseek-chat
-        gptel-backend (gptel-make-deepseek "deepseek"
-                        :stream t
-                        :key deepseek-api-key))
-
-  (require 'url-util)
-
-  (setq gptel-directives
-        '((default . "You are a large language model living in Emacs and a helpful assistant.")
-          (programming . "You are a large language model and a careful programmer. Provide code and only code as output without any additional text, prompt or note.")
-          (writing . "You are a large language model and a writing assistant. Respond concisely.")
-          (chat . "You are a large language model and a conversation partner. Respond concisely.")
-          (bug . "You are a large language model and a careful programmer. The supplied code doesn't work, or contains bugs. Describe each problem using only one sentence. Provide fixes without changing the old behavior.")))
-  (setq  gptel-stream nil)
-  :bind (:map gptel-mode-map
-              ("C-c C-d" . ant/load-gptel-directives-from-org)
-              ("C-x C-s" . ant/gptel-save-buffer)))
 
 (use-package undo-fu
   :ensure t
@@ -1328,36 +1069,6 @@ of the non-current window."
         (while (eq (char-before) 32) (delete-char -1)))))
   (message "%s done" real-this-command))
 
-(keymap-global-set "M-o" 'other-window)
-(keymap-global-set "C-c a" 'org-agenda)
-(keymap-global-set "C-c l" 'org-store-link)
-(keymap-global-set "C-<backspace>" 'avy-goto-word-0)
-(global-set-key  [remap list-buffers] 'ibuffer)
-(global-set-key  [remap switch-to-buffer] 'consult-buffer)
-(global-set-key  [remap project-switch-to-buffer] 'consult-project-buffer)
-(global-set-key  [remap kill-buffer] 'kill-current-buffer)
-(keymap-global-set "M-i" 'imenu)
-(keymap-global-set "C-<tab>" 'previous-buffer)
-(keymap-global-set "C-<iso-lefttab>" 'next-buffer)
-(keymap-global-set "<Cut>" 'kill-region)
-(keymap-global-set "<Copy>" 'kill-ring-save)
-(keymap-global-set "<Paste>" 'yank)
-;; (keymap-global-set "C-z" 'undo-fu-only-undo)
-;; (keymap-global-set "C-S-Z" 'undo-fu-only-redo)
-(keymap-global-set "<Undo>" 'undo-fu-only-undo)
-(keymap-global-set "<redo>" 'undo-fu-only-redo)
-
-(keymap-global-set "ESC <f5>" 'hibernatecall)
-
-(keymap-global-set "C-x C-d" (lambda ()
-                               (interactive)
-                               (duplicate-line)
-                               (next-line)))
-
-(keymap-global-set "<f8>" 'my-toggle-other-window)
-(keymap-global-set "<WakeUp>" 'wakeupcall)
-(keymap-global-set "<mouse-8>" 'scroll-up-command)
-(keymap-global-set "<mouse-9>" 'scroll-down-command)
 (defun donothing () (interactive)(message ""))
 
 (move-text-default-bindings)
@@ -1391,7 +1102,6 @@ of the non-current window."
 (add-hook 'after-init-hook #'delete-selection-mode)
 (add-hook 'after-init-hook #'global-hide-mode-line-mode)
 (add-hook 'rust-mode-hook #'cargo-minor-mode)
-
 (add-hook 'after-init-hook #'window-divider-mode)
 
 (defun hibernatecall()
@@ -1401,44 +1111,40 @@ of the non-current window."
   (insert (message "Good Bey! The PC Hibernate At %S\n" (current-time-string)))
   (setq hibernatetime (current-time))
   (setq monitor-state 'read)
-  (sleep-for 1)
+  (setq duwake t)
   (shell-command "systemctl hibernate"))
 
 (defun wakeupcall()
   (interactive)
-  (find-file "~/.hibernate")
-  (goto-char (point-max))
-  (beginning-of-line)
-  (insert (message "Sleep For %S Hour, Have A Nice Day!\n"
-                   (/ (time-to-seconds (time-since hibernatetime) ) 3600)))
-  (shell-command "notify-send -t 3000 'Have A Nice Time!'")
-  (delete-other-windows)
-  ;; (previous-line)
-  ;; (kill-whole-line)
-  (save-excursion
-    (find-file "~/.paperlike_state")
-    (erase-buffer)
-    (insert "read")
-    (save-buffer)
-    (kill-buffer)
-    (donothing))
-  (sleep-for 1)
-  (bookmark-jump "pdf")
-  (clear-minibuffer-message))
+  (setq duwake (not duwake))
+  (when duwake (progn
+                 (find-file "~/.hibernate")
+                 (goto-char (point-max))
+                 (beginning-of-line)
+                 (insert (message "Sleep For %S Hour, Have A Nice Day!\n"
+                                  (/ (time-to-seconds (time-since hibernatetime) ) 3600)))
+                 (alert "The fact is the sweetest dream that labor knows.")
+                 (delete-other-windows)
+                 (run-at-time "02:10am" nil 'alert "是时间睡觉了。" )
+                 (sleep-for 2)
+                 (bookmark-jump "pdf")
+                 (clear-minibuffer-message))))
 
 (use-package pyim
   :ensure t
   :custom
   (default-input-method "pyim")
   :config
-
+  (cl-defmethod pyim-page-info-format ((_style (eql minibuffer)) page-info)
+    (string-trim-right (string-replace "(" "" (format "%s %s"
+                                                      (if (plist-get page-info :assistant-enable) " P|" "")
+                                                      (plist-get page-info :candidates)
+                                                      (plist-get page-info :current-page))) "[\)]+" ))
   (define-key pyim-mode-map ";"
               (lambda ()
                 (interactive)
                 (pyim-select-word-by-number 2)))
-
   (setq pyim-indicator-list (list #'my-pyim-indicator-with-cursor-color #'pyim-indicator-with-modeline))
-
   (defun hd()
     "Show hmdz for the word at point."
     (interactive)
@@ -1453,7 +1159,7 @@ of the non-current window."
     (let ((old (current-buffer))
           (exsist 0))
       (save-excursion
-        (find-file "~/.emacs.d/hmdz.pyim")
+        (find-file "~/.emacs.d/resources/hmdz.pyim")
         (beginning-of-buffer)
         (search-forward char nil (setq exsist 1))
         (when (= exsist 1)
@@ -1485,50 +1191,51 @@ of the non-current window."
   (setq pyim-candidates-search-buffer-p nil)
   (setq pyim-enable-shortcode nil)
   (setq-default pyim-english-input-switch-functions '(pyim-probe-program-mode))
-  (setq pyim-punctuation-dict '())
-  ;; (setq pyim-punctuation-dict
-  ;;       '(("'" "‘" "’")
-  ;;         ("\"" "“" "”")
-  ;;         ("_" "——")
-  ;;         ("^" "…")
-  ;;         ;; ("]" "】")
-  ;;         ("]" "]")
-  ;;         ;; ("[" "【")
-  ;;         ("[" "[")
-  ;;         ("@" "◎")
-  ;;         ("?" "？")
-  ;;         ;; (">" "》")
-  ;;         (">" ">")
-  ;;         ;; ("=" "＝")
-  ;;         ("=" "=")
-  ;;         ;; ("<" "《")
-  ;;         ("<" "<")
-  ;;         (";" "；")
-  ;;         (":" "：")
-  ;;         ("\\" "、")
-  ;;         ("." "。")
-  ;;         ("-" "-")
-  ;;         ("," "，")
-  ;;         ;; ("+" "＋")
-  ;;         ("+" "+")
-  ;;         ("*" "*")
-  ;;         ;; (")" "）")
-  ;;         (")" ")")
-  ;;         ("(" "(")
-  ;;         ;; ("(" "（")
-  ;;         ("&" "※")
-  ;;         ("%" "％")
-  ;;         ("$" "￥")
-  ;;         ;; ("#" "＃")
-  ;;         ("#" "#")
-  ;;         ("!" "！")
-  ;;         ("`" "・")
-  ;;         ("~" "～")
-  ;;         ("}" "』")
-  ;;         ("|" "÷")
-  ;;         ("{" "『")))
+  ;; (setq pyim-punctuation-dict '())
+  (setq pyim-punctuation-dict
+        '(("'" "‘" "’")
+          ("\"" "“" "”")
+          ("_" "——")
+          ("^" "…")
+          ("]" "】")
+          ;; ("]" "]")
+          ("[" "【")
+          ;; ("[" "[")
+          ("@" "◎")
+          ("?" "？")
+          (">" "》")
+          ;; (">" ">")
+          ("=" "＝")
+          ;; ("=" "=")
+          ("<" "《")
+          ;; ("<" "<")
+          (";" "；")
+          (":" "：")
+          ("\\" "、")
+          ("." "。")
+          ("-" "-")
+          ("," "，")
+          ;; ("+" "＋")
+          ("+" "+")
+          ("*" "*")
+          (")" "）")
+          ;; (")" ")")
+          ;; ("(" "(")
+          ("(" "（")
+          ("&" "※")
+          ("%" "％")
+          ("$" "￥")
+          ;; ("#" "＃")
+          ("#" "#")
+          ("!" "！")
+          ("`" "・")
+          ("~" "～")
+          ("}" "』")
+          ("|" "÷")
+          ("{" "『")))
+
   (add-to-list 'pyim-dicts
-               '(:name "hmdz" :file "~/.emacs.d/hmdz.pyim")))
+               '(:name "hmdz" :file "~/.emacs.d/resources/hmdz.pyim")))
 
 (use-package pomm
   :ensure t
@@ -1536,20 +1243,19 @@ of the non-current window."
   (alert-default-style 'libnotify)
   (pomm-third-time-csv-history-file "~/.history.csv")
   (pomm-audio-enabled t)
+  (pomm-audio-files
+   '((work . "/home/leeao/.emacs.d/resources/tick.wav")
+     (tick . "/home/leeao/.emacs.d/resources/tick.wav")
+     (short-break . "/home/leeao/.emacs.d/resources/tick.wav")
+     (break . "/home/leeao/.emacs.d/resources/tick.wav")
+     (long-break . "/home/leeao/.emacs.d/resources/tick.wav")
+     (stop . "/home/leeao/.emacs.d/resources/tick.wav")))
   :commands (pomm pomm-third-time))
-
-(setq pomm-audio-files
-      '((work . "/nix/store/xp2xczaznv55d97f4wc81par6082qv15-emacs-packages-deps/share/emacs/site-lisp/elpa/pomm-20250202.1202/resources/tick.wav")
-        (tick . "/nix/store/xp2xczaznv55d97f4wc81par6082qv15-emacs-packages-deps/share/emacs/site-lisp/elpa/pomm-20250202.1202/resources/tick.wav")
-        (short-break . "/nix/store/xp2xczaznv55d97f4wc81par6082qv15-emacs-packages-deps/share/emacs/site-lisp/elpa/pomm-20250202.1202/resources/tick.wav")
-        (break . "/nix/store/xp2xczaznv55d97f4wc81par6082qv15-emacs-packages-deps/share/emacs/site-lisp/elpa/pomm-20250202.1202/resources/tick.wav")
-        (long-break . "/nix/store/xp2xczaznv55d97f4wc81par6082qv15-emacs-packages-deps/share/emacs/site-lisp/elpa/pomm-20250202.1202/resources/tick.wav")
-        (stop . "/nix/store/xp2xczaznv55d97f4wc81par6082qv15-emacs-packages-deps/share/emacs/site-lisp/elpa/pomm-20250202.1202/resources/tick.wav")))
 
 (defun switchepubinfo ()
   "Switch between *info* buffer and a specific EPUB file in nov-mode."
   (interactive)
-  (let ((epub-file "/home/leeao/嵌入式C语言自我修养：从芯片、编译器到操作系统.epub"))
+  (let ((epub-file "/home/leeao/codebase/books/c.epub"))
     (cond
      ;; If we are in nov-mode, switch to *info* buffer
      ((derived-mode-p 'nov-mode)
@@ -1694,56 +1400,6 @@ If region is active:
 (add-hook 'compilation-filter-hook #'my/compilation-filter-hook)
 (remove-hook 'compilation-filter-hook #'my/compilation-filter-hook)
 
-(define-prefix-command 'nav-map)
-(keymap-global-set "C-c C-~" 'nav-map)
-(define-key nav-map (kbd "g") #'er/expand-region)
-(define-key nav-map (kbd "m") #'toggle-truncate-lines)
-(define-key nav-map (kbd "v") (lambda () (interactive) (recenter-top-bottom 123)))
-(define-key nav-map (kbd "b") #'quick-sdcv-search-at-point)
-(define-key nav-map (kbd "j") #'quick-sdcv-search-at-point)
-(define-key nav-map (kbd "l") #'quick-sdcv-search-at-point)
-(define-key nav-map (kbd "u") #'quick-sdcv-search-at-point)
-(define-key nav-map (kbd "y") #'quick-sdcv-search-at-point)
-(define-key nav-map (kbd "'") #'quick-sdcv-search-at-point)
-
-(define-prefix-command 'mos-map)
-(keymap-global-set "C-c C-;" 'mos-map)
-(define-key mos-map (kbd "q") #'gptel-menu)
-(define-key mos-map (kbd "w") #'consult-gh)
-(define-key mos-map (kbd "f") #'rg-dwim)
-(define-key mos-map (kbd "p") #'disproject-dispatch)
-(define-key mos-map (kbd "b") #'ibuffer)
-(define-key mos-map (kbd "j") #'global-font-lock-mode)
-(define-key mos-map (kbd "l") #'tldr)
-(define-key mos-map (kbd "u") #'delete-all-space)
-(define-key mos-map (kbd "y") #'global-hide-mode-line-mode)
-(define-key mos-map (kbd "'") #'vertico-flat-mode)
-(define-key mos-map (kbd "a") #'comment-line)
-(define-key mos-map (kbd "r") #'keyboard-quit)
-(define-key mos-map (kbd "s") #'find-file)
-(define-key mos-map (kbd "t") #'consult-buffer)
-(define-key mos-map (kbd "m") #'man)
-(define-key mos-map (kbd "z") #'search-at-point)
-(define-key mos-map (kbd "c") #'compile)
-(define-key mos-map (kbd "d") #'dired)
-(define-key mos-map (kbd "v") #'multi-vterm-project)
-(define-key mos-map (kbd "k") #'kill-current-buffer)
-(define-key mos-map (kbd "SPC") #'indent-rigidly)
-
-(keymap-global-set "s-m" #'switch-to-gptel)
-(keymap-global-set "s-M" (lambda () (interactive) (toggle-monitor)))
-(keymap-global-set "s-t"  (lambda () (interactive) (recenter-top-bottom 0)))
-(keymap-global-set "s-w"  #'eww)
-(keymap-global-set "<Tools>" #'tavily-search)
-(keymap-global-set "<Launch5>" #'trashed)
-(keymap-global-set "<Launch6>" #'one-build)
-(keymap-global-set "<Launch7>" #'xah-clean-whitespace)
-(keymap-global-set "<Launch8>" #'delete-duplicate-lines)
-(keymap-global-set "<Launch9>" #'my-toggle-font)
-(keymap-global-set "<AudioMicMute>" #'magit-log-buffer-file)
-(keymap-global-set "<TouchpadToggle>" #'transient-copy-menu-text)
-(keymap-global-set "<f7>" (lambda () (interactive)  (set-mark-command (universal-argument))))
-
 (add-hook 'shell-mode-hook  'with-editor-export-editor)
 (add-hook 'eshell-mode-hook 'with-editor-export-editor)
 (add-hook 'term-exec-hook   'with-editor-export-editor)
@@ -1751,7 +1407,19 @@ If region is active:
 
 (setq gdb-many-windows nil)
 (setq gdb-show-main t)
+
 (setq compile-command "")
+
+(add-hook 'c++-mode-hook
+          (lambda ()
+            (setq-local compile-command "make -f ../Makefile submitc")
+            ))
+
+(add-hook 'rust-mode-hook
+          (lambda ()
+            (setq-local compile-command "make -f ../Makefile submitr")
+            ))
+
 (setq enable-dir-local-variables nil)
 
 (defvar my-alternate-font "-DAMA-UbuntuMono Nerd Font-regular-normal-normal-*-13-*-*-*-m-0-iso10646-1")
@@ -1786,66 +1454,33 @@ If region is active:
           (princ url)
           (princ "\n"))))))
 
-(use-package one :ensure t
-  :config
-  (defun one-build ()
-    "Build website of the current buffer under `./public/' subdirectory.
-Specifically:
-1) clean `./public/' subdirectory (if it exists),
-2) copy `./assets/' files into `./public/' subdirectory and
-3) call `one-render-pages' once.
-See `one-render-pages'."
-    (interactive)
-    (when (file-exists-p "./public/")
-      (delete-directory "./public/blog" t)
-      (delete-file "index.html")
-      ;; (dolist (file (directory-files "./public/" 'full "^[^.]"))
-      ;;   (unless (string-match-p "/\\.git/?$" file)
-      ;;     (if (file-directory-p file)
-      ;;         (delete-directory file t)
-      ;;       (delete-file file))))
-      )
-    (one-copy-assets-to-public)
-    (one-render-pages)))
-
 (use-package no-emoji
   :ensure t
   :config
   (setq no-emoji-display-table (make-display-table))
   (global-no-emoji-minor-mode 1))
 
-(setq shell-command-switch "-ic")
+(setq shell-command-switch "-c")
 
-(add-hook 'fundamental-mode-hook
-          (lambda ()
-            (setq-local comment-start "#")
-            (setq-local comment-end "")))
-
-(defun swtichinsoque()
+(defun switchSrcQue()
   (interactive)
   (if(string=  (c-get-current-file) "solution")
-      (find-file "question.org")(find-file "solution.cpp")))
+      (if (file-exists-p "question.md")
+          (find-file-at-point "question.md")
+        (find-file-at-point "question.org"))
+    (if (file-exists-p "solution.rs")
+        (find-file-at-point "solution.rs")
+      (find-file-at-point "solution.cpp"))
+    ))
 
-(defun swtichinlang()
+(defun switchLang()
   (interactive)
   (if(string=  (file-name-nondirectory (buffer-file-name))
                "solution.cpp")
       (find-file "solution.rs")(find-file "solution.cpp")))
 
-(keymap-global-set "s-s" 'swtichinsoque)
-(keymap-global-set "s-S" 'swtichinlang)
-
-(defalias 'nextleetcode
-  (kmacro
-   "C-n d <return> ^ <down> <return> M-< C-s q u e s t i o n <up> <down> <return>"))
-
-(keymap-global-set "s-n" 'nextleetcode)
-
-(defalias 'preleetcode
-  (kmacro
-   "C-n d <return> ^ <up> <return> M-< C-s q u e s t i o n <end> <left> <return>"))
-
-(keymap-global-set "s-p" 'preleetcode)
+(keymap-global-set "s-s" 'switchSrcQue)
+(keymap-global-set "s-S" 'switchLang)
 
 (setq face-font-rescale-alist '(("Source Han" . 0.9)))
 
@@ -1879,9 +1514,105 @@ See `one-render-pages'."
                (define-key map (vector (append mods (list key)))
                            (lambda () (interactive) (text-scale-adjust (abs inc))))))
            map)
-         nil nil
-         "")))))
+         nil nil "")))))
 
-(use-package simple
-  :ensure nil
-  :config)
+(setq kill-buffer-query-functions
+      (remq 'process-kill-buffer-query-function
+            kill-buffer-query-functions))
+
+(load-file "~/.emacs.d/nestor.el")
+
+(defun shell-here(command)
+  (interactive "sCommand Here: ")
+  (setq shell-command-dont-erase-buffer t)
+  (shell-command command  (current-buffer)))
+
+(set-buffer-file-coding-system 'utf-8-unix)
+(setq-default buffer-file-coding-system 'utf-8-unix)
+
+
+(defun find-matching-dir (query dir-path)
+  "Check if there's a subdirectory in DIR-PATH matching QUERY.
+QUERY should be a number or string representing a number.
+Matches subdirectories with 4-digit prefixes (padded with zeros)."
+  (let* ((query-str (format "%04d" (string-to-number query)))
+         (subdirs (directory-files dir-path t "^[0-9]\\{4\\}\\..*")))
+    (cl-some (lambda (dir)
+               (string-prefix-p query-str (file-name-nondirectory dir)))
+             subdirs)))
+
+(defun leetcode (query)
+  "Handle leetcode problem with proper async callback for image download."
+  (interactive "sQuery: ")
+  (if (find-matching-dir query "~/Leere/Yeetcode/src")
+      (async-shell-command (format "cd ~/Leere/Yeetcode/; leetgo edit %s" query))
+    (async-shell-command (format "cd ~/Leere/Yeetcode/; leetgo pick %s" query))))
+
+;; a function to pick all task?
+(defun my-run-leetgo-picks ()
+  "Run a fixed sequence of `leetgo pick` commands."
+  (interactive)
+  (let ((numbers '(1 10 101 102 104 105 11 114 121 124 128 136 139 141 142
+                     146 148 15 152 155 160 169 17 19 198 2 20 200 206 207 208
+                     21 215 22 221 226 23 234 236 238 239 240 253 279 283 287
+                     297 3 300 301 309 31 312 32 322 33 337 338 34 347 39 394
+                     399 4 406 416 42 437 438 448 46 461 48 49 494 5 53 538 543
+                     55 56 560 581 617 62 621 64 647 70 72 739 75 76 78 79 84 85
+                     94 96 98)))
+    (dolist (n numbers)
+      (shell-command (format "cd ~/Leere/Yeetcode/; leetgo pick %d -l cpp" n))
+      (shell-command (format "cd ~/Leere/Yeetcode/; leetgo pick %d -l rust" n)))
+    ))
+
+(defun my-download-leetcode-images (parent-dir)
+  "Download all images referenced in question.md files under PARENT-DIR.
+Each image is stored in the same subdirectory as its question.md.
+Also converts question.md to question.org and removes the .md file."
+  (interactive "DParent directory: ")
+  (dolist (dir (directory-files parent-dir t "^[0-9]+\\..*" t))
+    (let ((qfile (expand-file-name "question.md" dir)))
+      (when (file-exists-p qfile)
+        ;; Download images first
+        (with-temp-buffer
+          (insert-file-contents qfile)
+          (goto-char (point-min))
+          (while (re-search-forward "!\\[.*?\\](\\s-*\\(https?://[^)[:space:]]+\\)\\s-*)" nil t)
+            (let* ((url (match-string 1))
+                   (fname (file-name-nondirectory url))
+                   (out (expand-file-name fname dir)))
+              (unless (file-exists-p out)
+                (message "Downloading %s -> %s" url out)
+                (let ((ret (call-process "wget" nil nil nil "-q" "-O" out url)))
+                  (if (/= ret 0)
+                      (message "Failed to download %s")))))))
+        ;; Convert .md to .org and remove .md
+        (let ((default-directory dir))
+          (when (zerop (call-process "pandoc" nil nil nil "question.md" "-o" "question.org"))
+            (delete-file "question.md")
+            (message "Converted %s/question.md to .org" dir)))))))
+
+
+(defun my-download-leetcode-images-current-dir ()
+  "Download images referenced in current directory's question.md.
+Images are stored in current directory and converts .md to .org."
+  (interactive)
+  (let ((qfile "question.md")
+        (dir default-directory))
+    (when (file-exists-p qfile)
+      ;; Download images
+      (with-temp-buffer
+        (insert-file-contents qfile)
+        (goto-char (point-min))
+        (while (re-search-forward "!\\[.*?\\](\\s-*\\(https?://[^)[:space:]]+\\)\\s-*)" nil t)
+          (let* ((url (match-string 1))
+                 (fname (file-name-nondirectory url))
+                 (out (expand-file-name fname dir)))
+            (unless (file-exists-p out)
+              (message "Downloading %s -> %s" url out)
+              (let ((ret (call-process "wget" nil nil nil "-q" "-O" out url)))
+                (if (/= ret 0)
+                    (message "Failed to download %s")))))))
+      ;; Convert .md to .org and remove .md
+      (when (zerop (call-process "pandoc" nil nil nil "question.md" "-o" "question.org"))
+        (delete-file "question.md")
+        (message "Converted question.md to .org")))))
