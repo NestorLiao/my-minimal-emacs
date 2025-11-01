@@ -1,15 +1,16 @@
 ;;; -*- lexical-binding: t; -*-
+(defvar justonebookonetimelessismore "嵌入式C语言自我修养：从芯片、编译器到操作系统.pdf")
 (global-set-key  [remap kill-buffer] 'kill-current-buffer)
 (global-set-key  [remap list-buffers] 'ibuffer)
 (global-set-key  [remap project-switch-to-buffer] 'consult-project-buffer)
 (global-set-key  [remap switch-to-buffer] 'consult-buffer)
+(global-set-key  [remap dabbrev-expand] 'hippie-expand)
 (keymap-global-set "<AudioMicMute>" #'magit-log-buffer-file)
 (keymap-global-set "<Launch5>" #'trashed)
 (keymap-global-set "<Launch6>" #'one-build)
 (keymap-global-set "<Launch7>" #'xah-clean-whitespace)
 (keymap-global-set "<Launch8>" #'delete-duplicate-lines)
 (keymap-global-set "<Launch9>" #'my-toggle-font)
-(keymap-global-set "<Tools>" #'tavily-search)
 (keymap-global-set "<TouchpadToggle>" #'transient-copy-menu-text)
 (keymap-global-set "<WakeUp>" 'wakeupcall)
 (keymap-global-set "<f7>" (lambda () (interactive)  (set-mark-command (universal-argument))))
@@ -22,18 +23,23 @@
 (keymap-global-set "C-<tab>" 'previous-buffer)
 (keymap-global-set "C-c a" 'org-agenda)
 (keymap-global-set "C-c l" 'org-store-link)
+
+;; ("ESC <prior>" . )
 (keymap-global-set "ESC <f5>" 'hibernatecall)
+;; (keymap-global-set "ESC <prior>" (lambda () (interactive) (bookmark-jump )))
+;; (keymap-global-set "ESC <next>" (lambda () (interactive) (bookmark- "pdf")))
+
 (keymap-global-set "M-i" 'imenu)
 (keymap-global-set "M-o" (lambda () (interactive)(other-window -1)))
 
 (keymap-global-set "s-J" #'upcase-initials-region)
 (keymap-global-set "s-L" #'downcase-region)
-(keymap-global-set "s-M" #'switch-to-gptel)
 (keymap-global-set "s-U" #'upcase-region)
+(keymap-global-set "s-M" #'leetcode)
 (keymap-global-set "s-K" #'avy-kill-region)
+(keymap-global-set "s-Y" #'monitor)
 
 (keymap-global-set "s-t"  (lambda () (interactive) (recenter-top-bottom 0)))
-(keymap-global-set "s-w"  #'eww)
 
 (define-prefix-command 'nav-map)
 (keymap-global-set "C-c C-~" 'nav-map)
@@ -49,13 +55,13 @@
 
 (define-prefix-command 'mos-map)
 (keymap-global-set "C-c C-;" 'mos-map)
-(define-key mos-map (kbd "q") #'pomm-third-time-switch)
-(define-key mos-map (kbd "w") #'consult-gh)
-(define-key mos-map (kbd "f") #'rg-dwim)
+(define-key mos-map (kbd "q") #'yas-insert-snippet)
+(define-key mos-map (kbd "w") #'replace-string)
+(define-key mos-map (kbd "f") #'rg)
 (define-key mos-map (kbd "p") #'disproject-dispatch)
 (define-key mos-map (kbd "b") #'ibuffer)
 (define-key mos-map (kbd "j") #'font-lock-mode)
-(define-key mos-map (kbd "l") #'copy-from-above-command)
+(define-key mos-map (kbd "l") #'tldr)
 (define-key mos-map (kbd "u") #'delete-all-space)
 (define-key mos-map (kbd "y") #'global-hide-mode-line-mode)
 (define-key mos-map (kbd "'") #'vertico-flat-mode)
@@ -229,7 +235,10 @@
          ;; Minibuffer history
          :map minibuffer-local-map
          ("M-s" . consult-history)
-         ("M-r" . consult-history))
+         ("M-r" . consult-history)
+         ("<prior>" . previous-line-or-history-element)
+         ("<next>" . next-line-or-history-element)
+         )
 
   ;; Enable automatic preview at point in the *Completions* buffer.
   :hook (completion-list-mode . consult-preview-at-point-mode)
@@ -497,6 +506,7 @@
       (interactive)
       (insert (format-time-string "%Y-%m-%d"))))
   (add-hook 'org-mode-hook (lambda () (setq truncate-lines nil)))
+  (add-hook 'markdown-mode-hook (lambda () (setq truncate-lines nil)))
   (org-babel-do-load-languages
    'org-babel-load-languages
    '((C . t)
@@ -507,6 +517,7 @@
 (use-package tldr
   :bind ( :map tldr-mode-map
           ("SPC" . scroll-up-command)
+          ("t" . tldr)
           ("DEL" . scroll-down-command)))
 
 (use-package ligature
@@ -515,60 +526,43 @@
     (ligature-set-ligatures 't ligs))
   (global-ligature-mode 1))
 
-(defvar monitor-state 'read
-  "Current monitor state, either 'read or 'watch.")
+(defvar monitor-state 0
+  "Current monitor state, either 0 for read or  1 for watch.")
 
-(defvar monitorpath "/dev/i2c-4")
-(defvar monitorcli "paperlike-cli -i2c ")
-(defvar monitorarg '(" -contrast " " -speed " " -mode "))
-(defvar deepink '("9" "5" "1"))
-(defvar shallow '("2" "5" "3"))
-
-(defun read-monitor ()
-  (progn
-    (dotimes (number 3)
-      (shell-command (concat
-                      monitorcli
-                      monitorpath
-                      (car (nthcdr number monitorarg))
-                      (car (nthcdr number deepink))))
-      (sleep-for 1)
-      ))
-  (setq monitor-state 'read)
-  (sleep-for 1)
-  (async-shell-command (concat monitorcli monitorpath " -clear"))
-  (sleep-for 1)
-  (delete-other-windows))
-
-(defun watch-monitor ()
-  (progn
-    (dotimes (number 3)
-      (shell-command (concat
-                      monitorcli
-                      monitorpath
-                      (car (nthcdr number monitorarg))
-                      (car (nthcdr number shallow))))
-      (sleep-for 1)
-      ))
-  (setq monitor-state 'watch)
-  (sleep-for 1)
-  (async-shell-command (concat monitorcli monitorpath " -clear"))
-  (sleep-for 1)
-  (delete-other-windows))
-
-(defun toggle-monitor ()
+(defun monitor ()
+  "swtich monitor from read mode to watch mode"
   (interactive)
-  (if (eq monitor-state 'read)
-      ;; (progn
-      (watch-monitor)
-    ;; (start-process "notify" nil "notify-send" "Reminder" "move your mouse, now!")
-    ;; (run-at-time "15 second" nil
-    ;;              (lambda ()
-    ;;                (start-process "notify" nil "notify-send" "Reminder" "did you missed that?")
-    ;;                (read-monitor))))
-    (read-monitor))
-  (sleep-for 1)
-  (donothing))
+  (let((monitorpath "-i2c  /dev/i2c-4")
+       (monitorcli "paperlike-cli ")
+       (monitorarg '(" -contrast " " -speed " " -mode " " -clear"))
+       (mode-state '(("9" "5" "1")  ("2" "5" "3"))))
+    
+    (split-window-below)
+    (other-window 1)
+    (switch-to-buffer "*Shell Command Output*")
+    (split-window-below)
+    (other-window 1)
+    (switch-to-buffer "*Async Shell Command*")
+    (progn
+      (dotimes (number 3)
+        (message "%d" number)
+        (shell-command (concat
+                        monitorcli
+                        monitorpath
+                        (car (nthcdr number monitorarg))
+                        (car (nthcdr number (car (nthcdr monitor-state  mode-state)))))
+                       ))
+      (sleep-for 1))
+    (setq monitor-state  (if (= 0 monitor-state) 1 0 ))
+    (sleep-for 1.5)
+    (sleep-for 0.5)
+    (async-shell-command (concat monitorcli monitorpath " -clear"))
+    (let ((async (get-buffer-window "*Async Shell Command*"))
+          (shell (get-buffer-window "*Shell Command Output*")))
+      (when async (delete-window async))
+      (when shell  (delete-window shell)))
+    (sleep-for 0.5)
+    (donothing)))
 
 (add-hook 'minibuffer-setup-hook #'vertico-repeat-save)
 
@@ -808,11 +802,6 @@
     ("q" . delete-window)
     ("b" . quick-sdcv-search-at-point)))
 
-(use-package consult-dir
-  :bind (("<f6>" . consult-dir)
-         :map vertico-map
-         ("<f5>" . consult-dir-jump-file)))
-
 (use-package elisp-autofmt
   :commands (elisp-autofmt-mode
              elisp-autofmt-buffer
@@ -864,12 +853,6 @@
    super-save-silent t
    super-save-all-buffers  t
    super-save-remote-files t))
-
-(defun switch-to-gptel()
-  (interactive)
-  (if (equal  (current-buffer) (gptel "*deepseek*"))
-      (previous-buffer)
-    (switch-to-buffer "*deepseek*" )))
 
 (use-package undo-fu
   :ensure t
@@ -949,7 +932,7 @@ of the non-current window."
   :config
   (setq nov-header-line-format ""))
 
-;; pen
+;; PEN 笔
 ;; 1. <tab>
 ;;    - double: <enter>
 ;;    - long: C-M-i
@@ -969,11 +952,26 @@ of the non-current window."
               ("n" . pdf-view-next-page)
               ("p" . pdf-view-previous-page)
               ("b" . (lambda () (interactive) (toggle-monitor)))
-              ("ESC <prior>" . (lambda () (interactive) (bookmark-set "pdf")))
-              ("C-M-i" .              (lambda () (interactive) (bookmark-jump "pdf")))
-              ("<prior>" . pdf-view-previous-page)
-              ("<next>" . pdf-view-next-page))
+              ("C-M-i" . donothing)
+              ("RET" . donothing)
+              ("TAB" . donothing)
+              ("<prior>" . pdf-view-previous-page-record)
+              ("<next>" . pdf-view-next-page-record))
   :config (add-to-list 'revert-without-query ".pdf"))
+
+
+(defun pdf-view-previous-page-record()
+  (interactive)
+  (bookmark-set (buffer-name))
+  (pdf-view-previous-page)
+  )
+
+
+(defun pdf-view-next-page-record()
+  (interactive)
+  (bookmark-set (buffer-name))
+  (pdf-view-next-page))
+
 
 (use-package info
   :bind (:map Info-mode-map
@@ -1103,6 +1101,7 @@ of the non-current window."
 (add-hook 'after-init-hook #'global-hide-mode-line-mode)
 (add-hook 'rust-mode-hook #'cargo-minor-mode)
 (add-hook 'after-init-hook #'window-divider-mode)
+(add-hook 'progn-mode-hook #'ws-butler-mode)
 
 (defun hibernatecall()
   (interactive)
@@ -1110,7 +1109,7 @@ of the non-current window."
   (goto-char (point-max))  (beginning-of-line)
   (insert (message "Good Bey! The PC Hibernate At %S\n" (current-time-string)))
   (setq hibernatetime (current-time))
-  (setq monitor-state 'read)
+  (setq monitor-state 0)
   (setq duwake t)
   (shell-command "systemctl hibernate"))
 
@@ -1124,10 +1123,10 @@ of the non-current window."
                  (insert (message "Sleep For %S Hour, Have A Nice Day!\n"
                                   (/ (time-to-seconds (time-since hibernatetime) ) 3600)))
                  (alert "The fact is the sweetest dream that labor knows.")
-                 (delete-other-windows)
-                 (run-at-time "02:10am" nil 'alert "是时间睡觉了。" )
+                 (run-at-time "05:00pm" nil 'alert "断网了。" )
+                 (run-at-time "23:59pm" nil 'alert "凌晨了。" )
                  (sleep-for 2)
-                 (bookmark-jump "pdf")
+                 (bookmark-jump justonebookonetimelessismore)
                  (clear-minibuffer-message))))
 
 (use-package pyim
@@ -1198,35 +1197,26 @@ of the non-current window."
           ("_" "——")
           ("^" "…")
           ("]" "】")
-          ;; ("]" "]")
           ("[" "【")
-          ;; ("[" "[")
           ("@" "◎")
           ("?" "？")
           (">" "》")
-          ;; (">" ">")
           ("=" "＝")
-          ;; ("=" "=")
           ("<" "《")
-          ;; ("<" "<")
           (";" "；")
           (":" "：")
           ("\\" "、")
           ("." "。")
           ("-" "-")
           ("," "，")
-          ;; ("+" "＋")
-          ("+" "+")
+          ("+" "＋")
           ("*" "*")
           (")" "）")
-          ;; (")" ")")
-          ;; ("(" "(")
           ("(" "（")
           ("&" "※")
           ("%" "％")
           ("$" "￥")
-          ;; ("#" "＃")
-          ("#" "#")
+          ("#" "＃")
           ("!" "！")
           ("`" "・")
           ("~" "～")
@@ -1236,21 +1226,6 @@ of the non-current window."
 
   (add-to-list 'pyim-dicts
                '(:name "hmdz" :file "~/.emacs.d/resources/hmdz.pyim")))
-
-(use-package pomm
-  :ensure t
-  :custom
-  (alert-default-style 'libnotify)
-  (pomm-third-time-csv-history-file "~/.history.csv")
-  (pomm-audio-enabled t)
-  (pomm-audio-files
-   '((work . "/home/leeao/.emacs.d/resources/tick.wav")
-     (tick . "/home/leeao/.emacs.d/resources/tick.wav")
-     (short-break . "/home/leeao/.emacs.d/resources/tick.wav")
-     (break . "/home/leeao/.emacs.d/resources/tick.wav")
-     (long-break . "/home/leeao/.emacs.d/resources/tick.wav")
-     (stop . "/home/leeao/.emacs.d/resources/tick.wav")))
-  :commands (pomm pomm-third-time))
 
 (defun switchepubinfo ()
   "Switch between *info* buffer and a specific EPUB file in nov-mode."
@@ -1398,7 +1373,7 @@ If region is active:
   (my/nix-store-shorten-paths))
 
 (add-hook 'compilation-filter-hook #'my/compilation-filter-hook)
-(remove-hook 'compilation-filter-hook #'my/compilation-filter-hook)
+;; (remove-hook 'compilation-filter-hook #'my/compilation-filter-hook)
 
 (add-hook 'shell-mode-hook  'with-editor-export-editor)
 (add-hook 'eshell-mode-hook 'with-editor-export-editor)
@@ -1470,8 +1445,7 @@ If region is active:
         (find-file-at-point "question.org"))
     (if (file-exists-p "solution.rs")
         (find-file-at-point "solution.rs")
-      (find-file-at-point "solution.cpp"))
-    ))
+      (find-file-at-point "solution.cpp"))))
 
 (defun switchLang()
   (interactive)
@@ -1484,9 +1458,7 @@ If region is active:
 
 (setq face-font-rescale-alist '(("Source Han" . 0.9)))
 
-(add-hook 'c-mode-hook #'eglot-ensure)
-(add-hook 'rust-mode-hook #'eglot-ensure)
-(add-hook 'c++-mode-hook #'eglot-ensure)
+
 
 (setq resize-mini-windows nil)
 (global-eldoc-mode -1)
@@ -1520,8 +1492,6 @@ If region is active:
       (remq 'process-kill-buffer-query-function
             kill-buffer-query-functions))
 
-(load-file "~/.emacs.d/nestor.el")
-
 (defun shell-here(command)
   (interactive "sCommand Here: ")
   (setq shell-command-dont-erase-buffer t)
@@ -1529,7 +1499,6 @@ If region is active:
 
 (set-buffer-file-coding-system 'utf-8-unix)
 (setq-default buffer-file-coding-system 'utf-8-unix)
-
 
 (defun find-matching-dir (query dir-path)
   "Check if there's a subdirectory in DIR-PATH matching QUERY.
@@ -1591,8 +1560,7 @@ Also converts question.md to question.org and removes the .md file."
             (delete-file "question.md")
             (message "Converted %s/question.md to .org" dir)))))))
 
-
-(defun my-download-leetcode-images-current-dir ()
+(defun leetcode-current-dir ()
   "Download images referenced in current directory's question.md.
 Images are stored in current directory and converts .md to .org."
   (interactive)
@@ -1616,3 +1584,22 @@ Images are stored in current directory and converts .md to .org."
       (when (zerop (call-process "pandoc" nil nil nil "question.md" "-o" "question.org"))
         (delete-file "question.md")
         (message "Converted question.md to .org")))))
+
+(load-file "~/.emacs.d/network.el")
+
+
+
+(use-package cc-mode
+  :ensure nil
+  :config
+  (add-hook 'cc-mode-hook
+            (lambda ()
+              (setq c-backslash-column 100)
+              (setq c-backslash-max-column 120)
+              (setq c-basic-offset 4) ; Set indent to 4 spaces
+              (setq c-indent-level 4)))
+  (add-hook 'c-mode-hook #'eglot-ensure)
+  (add-hook 'c++-mode-hook #'eglot-ensure)
+  )
+
+(add-hook 'rust-mode-hook #'eglot-ensure)

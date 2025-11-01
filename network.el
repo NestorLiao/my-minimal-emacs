@@ -1,5 +1,14 @@
 ;;; -*- lexical-binding: t; -*-
 
+(keymap-global-set "s-m" #'switch-to-gptel)
+(keymap-global-set "<Tools>" #'tavily-search)
+
+(defun switch-to-gptel()
+  (interactive)
+  (if (equal  (current-buffer) (gptel "*deepseek*"))
+      (previous-buffer)
+    (switch-to-buffer "*deepseek*" )))
+
 (defun tavily-search-async (callback query &optional search-depth max-results exclude_domains country include_domains)
   "Perform a search using the Tavily API and return results as JSON string.
 API-KEY is your Tavily API key.
@@ -8,24 +17,6 @@ Optional SEARCH-DEPTH is either \"basic\" (default) or \"advanced\".
 Optional MAX-RESULTS is the maximum number of results (default 5)."
   (require 'plz)
   (let* ((plz-curl-default-args (cons "-k" plz-curl-default-args))
-                                        ;"chunks_per_source": 3,
-                                        ;"include_raw_content": true
-                                        ;"time_range": "month"
-                                        ;"start_date": "2025-01-01",
-                                        ;"end_date": "2025-02-01"
-                                        ;"topic": "news",
-                                        ;"days": 1
-                                        ;"auto_parameters": true,
-                                        ;"search_depth": "basic", // Overrides 'advanced'
-                                        ;"include_answer": true,
-                                        ;"max_results": 10
-                                        ;"include_domains": ["linkedin.com/in"]
-                                        ;"include_domains": [ "crunchbase.com", "techcrunch.com", "pitchbook.com" ]
-                                        ;"exclude_domains": ["espn.com","vogue.com"]
-                                        ;"include_domains": ["*.com"]
-                                        ;"exclude_domains": ["*.is"]
-                                        ;"topic": "general",
-                                        ;"country": "united states"
          (url "https://api.tavily.com/search")
          (search-depth (or search-depth "advanced"))
          (max-results (or max-results 1))
@@ -42,10 +33,10 @@ Optional MAX-RESULTS is the maximum number of results (default 5)."
             ("exclude_domains" . ,exclude_domains)
             ("max_results" . ,max-results))))
     (plz 'post url
-         :headers '(("Content-Type" . "application/json"))
-         :body (json-encode request-data)
-         :as 'string
-         :then (lambda (result) (funcall callback result)))))
+      :headers '(("Content-Type" . "application/json"))
+      :body (json-encode request-data)
+      :as 'string
+      :then (lambda (result) (funcall callback result)))))
 
 (defun tavily-search (query)
   (interactive "sQuery: ")
@@ -252,7 +243,6 @@ set to ~/note."
           (gptel-mode)))))
 
   (setq  gptel-default-mode 'org-mode)
-  ;; OPTIONAL configuration
 
   (setq deepseek-api-key
         (with-temp-buffer
@@ -277,6 +267,8 @@ set to ~/note."
               ("C-c C-d" . ant/load-gptel-directives-from-org)
               ("C-x C-s" . ant/gptel-save-buffer)))
 
+
+
 (use-package eww
   :ensure nil
   :config
@@ -299,33 +291,16 @@ set to ~/note."
                              "http://cpp.doc:3002/" ; "https://en.cppreference.com/w/cpp"
                              "http://linux.doc:3000/" ;"https://www.kernel.org/doc/html/latest/"
                                         ; C-h I "https://www.gnu.org/software/emacs/manual/"
-                             ;; "https://docs.espressif.com/projects/esp-idf/en/latest/"
-                             ;; "https://wiki.osdev.org/Main_Page"
-                             ;; "https://docs.zephyrproject.org/latest/"
-                             ;; "https://docs.lvgl.io/"
                              ))
-  (with-eval-after-load 'eww
-    (defun eww-toggle-images ()
-      "Toggle whether or not to display images."
-      (interactive nil eww-mode)
-      (setq shr-inhibit-images (not shr-inhibit-images))
-      (eww-reload)
-      (message "Images are now %s"
-               (if shr-inhibit-images "off" "on"))
-      (if shr-inhibit-images  (donothing) (run-at-time "5" nil
-                                                       (lambda () (progn
-                                                                    (start-process "notify" nil "notify-send" "Reminder" "看一眼就够了")
-                                                                    (setq shr-inhibit-images (not shr-inhibit-images))
-                                                                    (eww-reload))))))
-    (defun my-eww-edit-url ()
-      "Edit the current EWW URL and reload the page."
-      (interactive)
-      (unless (derived-mode-p 'eww-mode)
-        (user-error "Not in EWW buffer"))
-      (let ((current-url (plist-get eww-data :url)))
-        (setq eww-data (plist-put eww-data :url
-                                  (read-string "Edit URL: " current-url)))
-        (eww-reload))))
-  (add-hook 'eww-after-render-hook 'eww-readable)  ;; Enable readable mode by default
+  (defun my-eww-edit-url ()
+    "Edit the current EWW URL and reload the page."
+    (interactive)
+    (unless (derived-mode-p 'eww-mode)
+      (user-error "Not in EWW buffer"))
+    (let ((current-url (plist-get eww-data :url)))
+      (setq eww-data (plist-put eww-data :url
+                                (read-string "Edit URL: " current-url)))
+      (eww-reload)))
+  (add-hook 'eww-after-render-hook 'eww-readable)
   :bind (:map eww-mode-map
               ("e" . my-eww-edit-url)))
